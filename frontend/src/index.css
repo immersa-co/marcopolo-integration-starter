@@ -1,0 +1,50 @@
+:root {
+  --page: #f4ecdf;
+  --page-accent: #e5d5bc;
+  --panel: rgba(255, 251, 245, 0.88);
+  --panel-muted: rgba(249, 241, 230, 0.9);
+  --panel-border: rgba(43, 57, 64, 0.1);
+  --ink: #1f2830;
+  --muted-ink: #5e635d;
+  --accent-strong: #183f47;
+  --accent-soft: #d97f45;
+  --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --sans: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+
+  font: 16px/1.5 var(--sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(217, 127, 69, 0.18), transparent 18rem),
+    linear-gradient(180deg, var(--page), var(--page-accent));
+  color: var(--ink);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  max-width: 12ch;
+}
+
+h2,
+h3,
+p {
+  margin: 0;
+}
