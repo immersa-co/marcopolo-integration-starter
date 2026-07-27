@@ -251,10 +251,11 @@ Guidance:
 Return JSON only with one of these shapes:
 1. {{"mode":"browse"}}
 2. {{"mode":"clarify","clarification":"..."}}
-3. {{"mode":"query_file","query_file_path":"connections/<name>/queries/<file>","query_contents":"...","sample_rows":20}}
+3. {{"mode":"query_file","query_file_path":"connections/<name>/queries/<file>","query_contents":"..."}}
 
 Use browse only when the request is best served by `connection browse`.
 Use query_file when the request requires a query file followed by `connection query`.
+When authoring query_contents for preview-style requests, keep the result set bounded in the query itself, for example with `LIMIT 20` or the connector's equivalent.
 Use clarify when the request lacks enough detail.
 """
         response = await llm.ainvoke(prompt)
@@ -286,7 +287,6 @@ Use clarify when the request lacks enough detail.
 
         query_path = plan["query_file_path"]
         query_contents = plan["query_contents"]
-        sample_rows = int(plan.get("sample_rows", 20))
         persist_command = _workspace_write_command(query_path, query_contents)
         persist = await self._marcopolo.workspace_shell(
             user_session,
@@ -299,10 +299,8 @@ Use clarify when the request lacks enough detail.
 
         shell = await self._marcopolo.workspace_shell(
             user_session,
-            command=(
-                f"connection query {connection_name} --file {query_path} --sample-rows {sample_rows} --json"
-            ),
-            context="Executing a MarcoPolo connection query for the integration demo chatbot and collecting bounded preview rows for response formatting.",
+            command=f"connection query {connection_name} --file {query_path} --include-results --json",
+            context="Executing a MarcoPolo connection query for the integration demo chatbot and collecting inline rows for response formatting.",
             timeout=120,
         )
         return {
