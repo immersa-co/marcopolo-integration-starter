@@ -9,6 +9,7 @@ This guide is the recommended onboarding path for `marcopolo-integration-starter
 - how to list and configure MarcoPolo connections from a custom web app
 - how to use `marcopolo-sdk` for traditional product integrations
 - how to use MarcoPolo MCP tools from a LangGraph agent
+- how the embedded MCP app connection configuration approach works
 
 ## Recommended Learning Path
 
@@ -132,6 +133,10 @@ To add more SDK-driven examples, edit the SDK example definitions in:
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
 
+For a deeper explanation of how the embedded connection configuration host works, read:
+
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
+
 ### 8. Switch to WorkOS Connect
 
 After the Developer API token path is working, request WorkOS Connect secrets from Immersa and configure:
@@ -155,6 +160,7 @@ If Connect mode is correctly configured, the same app behaviors should work with
 ## Next Reading
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/authentication-modes.md`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/sdk-and-chatbot.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/repo-map.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/known-limitations.md`

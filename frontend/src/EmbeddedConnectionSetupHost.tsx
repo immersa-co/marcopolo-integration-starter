@@ -77,7 +77,7 @@ function buildToolInput(payload: EmbeddedConnectionSetupResponse): Record<string
   }
 }
 
-export default function RealEmbeddedConnectionSetupHost({
+export default function EmbeddedConnectionSetupHost({
   apiBaseUrl,
   marcoPoloWebBaseUrl,
   payload,

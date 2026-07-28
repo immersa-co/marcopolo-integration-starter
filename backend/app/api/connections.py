@@ -14,7 +14,6 @@ from ..dependencies import (
 )
 from ..models import (
     ConnectionListResponse,
-    ConnectionSetupResponse,
     ConnectionSetupStatusResponse,
     DemoConnectionInstallResponse,
 )
@@ -61,26 +60,6 @@ async def install_demo_connection(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
-@router.post("/setup", response_model=ConnectionSetupResponse)
-async def start_connection_setup(
-    request: Request,
-    user_session: UserSession = Depends(require_marcopolo_access),
-    marcopolo: MarcoPoloService = Depends(get_marcopolo_service),
-) -> ConnectionSetupResponse:
-    payload = await request.json()
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=422, detail="JSON object body is required.")
-
-    connection_type = payload.get("connectionType") or payload.get("connection_type")
-    if not connection_type:
-        raise HTTPException(status_code=422, detail="connectionType is required.")
-
-    try:
-        return await marcopolo.start_connection_setup(user_session, connection_type)
-    except MarcoPoloServiceError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-
-
 @router.post("/setup/embedded", response_model=EmbeddedConnectionSetupResponse)
 async def start_embedded_connection_setup(
     request: Request,
@@ -99,7 +78,7 @@ async def start_embedded_connection_setup(
         raise HTTPException(status_code=422, detail="connectionType is required.")
 
     try:
-        return await marcopolo.start_embedded_connection_setup(
+        return await marcopolo.start_connection_setup(
             user_session,
             connection_type,
             host_return_url=host_return_url,
