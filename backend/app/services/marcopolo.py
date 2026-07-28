@@ -11,7 +11,6 @@ from marcopolo import MarcoPolo as SDKMarcoPolo
 from marcopolo.errors import ToolResultError
 
 from ..config import Settings
-from .mcp_client import MCPClient, MCPClientError
 from .marcopolo_session_manager import (
     MarcoPoloSession,
     MarcoPoloSessionManager,
@@ -20,7 +19,6 @@ from .marcopolo_session_manager import (
 from ..models import (
     ConnectionListItem,
     ConnectionListResponse,
-    ConnectionSetupResponse,
     ConnectionSetupStatusResponse,
     DataConnectionOperation,
     DataConnectionOperationResponse,
@@ -197,13 +195,16 @@ class MarcoPoloService:
         self,
         user_session: UserSession,
         connection_type: str,
-    ) -> ConnectionSetupResponse:
+        host_return_url: str | None = None,
+        host_origin: str | None = None,
+        host_session_id: str | None = None,
+    ) -> EmbeddedConnectionSetupResponse:
         session = await self._resolve_session(user_session)
         client = self._sdk_client(session)
         try:
             result = await client.start_connection_setup(
                 connection_type,
-                context="Starting a new Integration Demo connection setup flow for the authenticated user and returning the native MarcoPolo setup experience.",
+                context="Starting a new Integration Demo connection setup flow for the authenticated user and preserving the widget payload for the embedded setup host.",
             )
         except ToolResultError as exc:
             raise MarcoPoloServiceError(str(exc), status_code=502) from exc
@@ -213,51 +214,21 @@ class MarcoPoloService:
                 status_code=_status_code_from_exception(exc),
             ) from exc
 
-        return ConnectionSetupResponse(
-            url=result.url,
-            workflow_type=result.workflow_type,
-            message=result.message,
-            setup_session_id=result.setup_session_id,
-            status=result.status,
-            status_url=result.status_url,
-            next_actions=result.next_actions,
-        )
-
-    async def start_embedded_connection_setup(
-        self,
-        user_session: UserSession,
-        connection_type: str,
-        host_return_url: str | None = None,
-        host_origin: str | None = None,
-        host_session_id: str | None = None,
-    ) -> EmbeddedConnectionSetupResponse:
-        session = await self._resolve_session(user_session)
-        try:
-            result = await self._mcp_client(session).call_tool(
-                "connection_setup",
-                {
-                    "type": connection_type,
-                    "context": "Starting a new Integration Demo connection setup flow for the authenticated user and preserving the widget payload for the embedded setup spike.",
-                },
-            )
-        except MCPClientError as exc:
-            raise MarcoPoloServiceError(exc.detail, status_code=exc.status_code) from exc
-
-        result = _inject_embedded_host_context(
-            result,
+        tool_result = _inject_embedded_host_context(
+            result.tool_result,
             host_return_url=host_return_url,
             host_origin=host_origin,
             host_session_id=host_session_id,
         )
-        result = _override_embedded_api_base_url(
-            result,
+        tool_result = _override_embedded_api_base_url(
+            tool_result,
             self._settings.public_api_base_url.rstrip("/") + "/api/connections/ext-app-proxy",
         )
-        payload = _parse_tool_payload(result)
-        widget_meta = _parse_tool_meta(result)
+        payload = _parse_tool_payload(tool_result)
+        widget_meta = _parse_tool_meta(tool_result)
         return EmbeddedConnectionSetupResponse(
-            resource_uri="ui://connection-setup/app.html",
-            tool_result=result,
+            resource_uri=result.resource_uri,
+            tool_result=tool_result,
             tool_output=payload,
             widget_meta=widget_meta,
             status_url=payload.get("status_url"),
@@ -501,12 +472,6 @@ class MarcoPoloService:
             server_url=self._settings.marcopolo_mcp_url,
         )
 
-    def _mcp_client(self, session: MarcoPoloSession) -> MCPClient:
-        return MCPClient(
-            api_token=session.access_token,
-            server_url=self._settings.marcopolo_mcp_url,
-        )
-
 
 def _parse_tool_payload(result: dict[str, Any]) -> dict[str, Any]:
     structured = result.get("structuredContent") or result.get("structured_content")
@@ -537,6 +502,8 @@ def _parse_tool_payload(result: dict[str, Any]) -> dict[str, Any]:
 
 def _parse_tool_meta(result: dict[str, Any]) -> dict[str, Any]:
     meta = result.get("_meta")
+    if not isinstance(meta, dict):
+        meta = result.get("meta")
     if isinstance(meta, dict):
         return meta
     return {}
@@ -545,6 +512,8 @@ def _parse_tool_meta(result: dict[str, Any]) -> dict[str, Any]:
 def _override_embedded_api_base_url(result: dict[str, Any], api_base_url: str) -> dict[str, Any]:
     updated = copy.deepcopy(result)
     meta = updated.get("_meta")
+    if not isinstance(meta, dict):
+        meta = updated.get("meta")
     if not isinstance(meta, dict):
         return updated
 

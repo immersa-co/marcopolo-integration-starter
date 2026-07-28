@@ -71,18 +71,6 @@ class DemoConnectionInstallResponse(BaseModel):
     demo_connection_id: str | None = Field(alias="demoConnectionId", default=None)
 
 
-class ConnectionSetupResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    url: str
-    workflow_type: str | None = Field(alias="workflowType", default=None)
-    message: str | None = None
-    setup_session_id: str | None = Field(alias="setupSessionId", default=None)
-    status: str | None = None
-    status_url: str | None = Field(alias="statusUrl", default=None)
-    next_actions: list[str] = Field(alias="nextActions", default_factory=list)
-
-
 class ConnectionSetupStatusResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

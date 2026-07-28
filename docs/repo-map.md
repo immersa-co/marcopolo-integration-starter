@@ -2,6 +2,10 @@
 
 This file points developers at the main integration seams in `marcopolo-integration-starter`.
 
+For the higher-level explanation of why embedded connection setup exists and how the MCP app host works, start with:
+
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
+
 ## Frontend
 
 ### App shell and tab UI
@@ -20,7 +24,7 @@ Contains:
 
 ### Embedded MCP app host
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/RealEmbeddedConnectionSetupHost.tsx`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/EmbeddedConnectionSetupHost.tsx`
 
 Contains:
 

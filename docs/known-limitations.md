@@ -22,7 +22,7 @@ If that approach is not desirable for a product:
 
 are the alternative direction on the roadmap.
 
-## 3. Google Drive Configuration Is Not Yet Working
+## 3. Google Drive Configuration Is Not Yet Supported In The Stable Demo
 
 Google Drive embedded setup is intentionally not part of the stable demo baseline.
 
@@ -35,3 +35,5 @@ For the stable demo path, use:
 - Salesforce
 - Jira
 - other non-Google connections that do not require the same Picker continuation model
+
+This is a roadmap item, not a rejected direction.

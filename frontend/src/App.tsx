@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
-import RealEmbeddedConnectionSetupHost from './RealEmbeddedConnectionSetupHost'
+import EmbeddedConnectionSetupHost from './EmbeddedConnectionSetupHost'
 
 type TabId = 'configuration' | 'connections' | 'chatbot' | 'integrations'
 
@@ -1117,7 +1117,7 @@ function App() {
               ) : null}
             </div>
             {embeddedSetup ? (
-              <RealEmbeddedConnectionSetupHost
+              <EmbeddedConnectionSetupHost
                 apiBaseUrl={apiBaseUrl}
                 marcoPoloWebBaseUrl={config.marcoPolo.webBaseUrl}
                 payload={embeddedSetup}
