@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     marcopolo_mcp_url: str = Field(default="http://localhost:8000")
     marcopolo_api_base_url: str = Field(default="http://localhost:8000/api")
     marcopolo_web_base_url: str = Field(default="http://localhost:8000")
-    marcopolo_browser_bootstrap_path: str = Field(default="/app/api/auth/bootstrap")
+    marcopolo_browser_bootstrap_path: str = Field(default="/api/auth/bootstrap")
     marcopolo_browser_bootstrap_redirect: str = Field(default="/app/")
     marcopolo_developer_api_token: str = Field(default="")
 
@@ -66,7 +66,6 @@ class Settings(BaseSettings):
     def workos_connect_configured(self) -> bool:
         return bool(
             self.workos_connect_auth_url.strip()
-            and self.workos_api_key.strip()
             and self.workos_connect_client_id.strip()
             and self.workos_connect_client_secret.strip()
             and self.workos_connect_redirect_uri.strip()
@@ -90,7 +89,7 @@ class Settings(BaseSettings):
 
     @property
     def marcopolo_auth_mode_effective(self) -> str:
-        return "developer_api_token"
+        return "workos_connect"
 
 
 @lru_cache

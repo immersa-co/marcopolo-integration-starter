@@ -4,8 +4,8 @@ This guide is the recommended onboarding path for `marcopolo-integration-starter
 
 ## What This Demo Shows
 
-- how to get started by authenticating to MarcoPolo with your own personal Developer API token 
-- how to switch to WorkOS Connect token mode
+- how to authenticate a partner demo user through WorkOS Connect and Marcopolo bootstrap
+- how the session exposes Marcopolo's issuer-resolved namespace and company
 - how to list and configure MarcoPolo connections from a custom web app
 - how to use `marcopolo-sdk` for traditional product integrations
 - how to use MarcoPolo MCP tools from a LangGraph agent
@@ -13,53 +13,42 @@ This guide is the recommended onboarding path for `marcopolo-integration-starter
 
 ## Recommended Learning Path
 
-### 1. Getting Started
+### 1. Getting Started: Partner Namespace E2E
 
+1. Start the local Marcopolo stack on `http://localhost:8000`.
+2. Copy `.env.example` to `.env`.
+3. Fill the empty secret values. The example already contains the local Marcopolo URLs, canonical
+   `/api/auth/bootstrap`, and the Entelligence AuthKit domain and client ID.
+4. Install dependencies:
 
-1. First, create a [**Developer API token**](https://docs.marcopolo.dev/getting-started/developer-sdk#api-tokens) using your own MarcoPolo login
-3. Copy `.env.example` to `.env`
-4. Set:
-   - `SESSION_SECRET`
-   - `MARCOPOLO_MCP_URL`
-   - `MARCOPOLO_API_BASE_URL`
-   - `MARCOPOLO_WEB_BASE_URL`
-   - `MARCOPOLO_DEVELOPER_API_TOKEN`
-   - `LLM_API_KEY`
-   - `SKILL_REPO_PATH`
+   ```bash
+   python3 -m venv .venv
+   .venv/bin/python -m pip install -r backend/requirements.txt
+   npm --prefix frontend install
+   ```
 
-Install dependencies:
+5. Run the backend and frontend:
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r backend/requirements.txt
-npm --prefix frontend install
-```
+   ```bash
+   .venv/bin/python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8001
+   npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173
+   ```
 
-Run the app:
+6. Open `http://localhost:5173` and choose `WorkOS Connect (partner E2E)`.
+7. Enter the partner user's email in `Test User`, then complete WorkOS Connect.
+8. Confirm the session strip shows the authoritative values:
 
-```bash
-.venv/bin/python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8001
-npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173
-```
+   - `namespace: entelligence`
+   - `company: entelligence-demo`
 
-Open `http://localhost:5173`.
+The Test User is only the demo harness for the partner application's authenticated user. The backend exchanges the
+WorkOS code, calls Marcopolo `POST /api/auth/bootstrap` with the access and refresh tokens, validates the response,
+and stores the returned namespace and company. A failed bootstrap leaves the session unprovisioned.
 
-### 2. Login Using Developer API Token and List Available Connections
+### 2. List Available Connections
 
-In the launch page:
-
-1. Leave the auth mode on `Developer API Token`
-2. Enter the same email that owns the MarcoPolo workspace behind your Developer API token
-3. Click `Test User`
-4. Open the `Connections` tab
-5. Click `Refresh`
-
-That exercises the simplest dial tone:
-
-- frontend asks backend for connections
-- backend builds a MarcoPolo session from `MARCOPOLO_DEVELOPER_API_TOKEN`
-- backend calls `list_connections`
-- the UI renders the visible workspace connections
+After the WorkOS Connect bootstrap succeeds, open the `Connections` tab and click `Refresh`. The backend uses the
+WorkOS access token associated with the bootstrapped session and the UI renders the visible namespace connections.
 
 ### 3. Create the Salesforce Demo Connection
 
@@ -137,28 +126,15 @@ For a deeper explanation of how the embedded connection configuration host works
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
 
-### 8. Switch to WorkOS Connect
+### 8. Local Developer Token Shortcut
 
-After the Developer API token path is working, request WorkOS Connect secrets from Immersa and configure:
-
-- `WORKOS_API_KEY`
-- `WORKOS_CONNECT_AUTH_URL`
-- `WORKOS_CONNECT_CLIENT_ID`
-- `WORKOS_CONNECT_CLIENT_SECRET`
-- `WORKOS_CONNECT_REDIRECT_URI`
-- `WORKOS_CONNECT_LOGIN_URI`
-
-Then:
-
-1. switch the auth mode to `WorkOS Connect Token`
-2. enter any test email
-3. complete the Connect authorization flow when prompted
-4. repeat the same connection, integration, and chatbot validation
-
-If Connect mode is correctly configured, the same app behaviors should work with a Connect-generated bearer token instead of the Developer API token.
+The `Developer API Token (local shortcut)` mode is available only for inspecting an already provisioned workspace.
+It is not the partner integration and provides no proof of WorkOS issuer-based namespace resolution. Do not use it for
+the Entelligence E2E.
 
 ## Next Reading
 
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/partner-namespace-manual-e2e.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/authentication-modes.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/sdk-and-chatbot.md`

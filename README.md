@@ -19,14 +19,17 @@ Read the developer guide:
 
 Recommended first path:
 
-1. Create a MarcoPolo Developer API token from `https://mcp.marcopolo.dev/app`
-2. Put that token in `.env`
-3. Start the backend and frontend
-4. Enter your own MarcoPolo email as the Test User
-5. Install the Salesforce demo connection
-6. Validate it in both the `Integrations` and `Chatbot` tabs
+1. Copy `.env.example` to `.env` and fill the empty local secret values
+2. Start the local Marcopolo stack on `http://localhost:8000`
+3. Start the starter backend and frontend
+4. Select `WorkOS Connect (partner E2E)` and enter the partner user's email as the Test User
+5. Complete the Entelligence WorkOS Connect flow
+6. Confirm the resolved `namespace` and `company` in the session strip
+7. Install the Salesforce demo connection and validate the `Integrations` and `Chatbot` tabs
 
-After that is working, switch to WorkOS Connect mode.
+The Test User is a demo harness for the partner application's authenticated user. WorkOS Connect is the only
+partner namespace authentication path; the developer-token mode is only a local shortcut for an already provisioned
+workspace and must not be used to validate partner routing.
 
 ## Local Setup
 
@@ -50,6 +53,7 @@ Open `http://localhost:5173`.
 
 - Developer Guide: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/README.md`
 - Authentication Modes: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/authentication-modes.md`
+- Partner Namespace Manual E2E: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/partner-namespace-manual-e2e.md`
 - Embedded Connection Setup: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
 - SDK and Chatbot Guide: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/sdk-and-chatbot.md`
 - Repo Map: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/repo-map.md`

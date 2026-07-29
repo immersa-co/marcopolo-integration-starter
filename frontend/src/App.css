@@ -203,6 +203,49 @@
   font-size: 0.8rem;
 }
 
+.resolved-identity {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(24, 63, 71, 0.14);
+  border-radius: 1rem;
+  background: rgba(247, 240, 229, 0.72);
+}
+
+.resolved-identity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.resolved-identity dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.resolved-identity dl div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.resolved-identity dt {
+  color: var(--muted-ink);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.resolved-identity dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-weight: 700;
+  word-break: break-word;
+}
+
 .session-actions {
   display: flex;
   flex-direction: column;

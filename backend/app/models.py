@@ -31,6 +31,8 @@ class AuthSessionResponse(BaseModel):
     marco_polo_auth_mode_configured: bool = Field(alias="marcoPoloAuthModeConfigured", default=False)
     marco_polo_configured: bool = Field(alias="marcoPoloConfigured", default=False)
     marco_polo_provisioned: bool = Field(alias="marcoPoloProvisioned", default=False)
+    company: str | None = None
+    namespace: str | None = None
 
 
 class ConnectionListItem(BaseModel):

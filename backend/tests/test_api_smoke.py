@@ -51,6 +51,8 @@ class ApiSmokeTests(unittest.TestCase):
         session_payload = session_response.json()
         self.assertIn("marcoPoloConfigured", session_payload)
         self.assertIn("marcoPoloProvisioned", session_payload)
+        self.assertIsNone(session_payload["company"])
+        self.assertIsNone(session_payload["namespace"])
 
         examples_response = self.client.get("/api/integrations/examples")
         self.assertEqual(examples_response.status_code, 200)
@@ -63,14 +65,23 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertTrue(payload["authenticated"])
         self.assertEqual(payload["provider"], "impersonation")
         self.assertEqual(payload["user"]["email"], "demo.user@example.com")
+        self.assertFalse(payload["marcoPoloProvisioned"])
+        self.assertIsNone(payload["company"])
+        self.assertIsNone(payload["namespace"])
 
         session_payload = self.client.get("/api/auth/session").json()
         self.assertTrue(session_payload["authenticated"])
         self.assertEqual(session_payload["provider"], "impersonation")
         self.assertEqual(session_payload["user"]["email"], "demo.user@example.com")
+        self.assertIsNone(session_payload["company"])
+        self.assertIsNone(session_payload["namespace"])
 
         logout_response = self.client.post("/api/auth/logout")
         self.assertEqual(logout_response.status_code, 200)
+        logout_payload = logout_response.json()
+        self.assertFalse(logout_payload["marcoPoloProvisioned"])
+        self.assertIsNone(logout_payload["company"])
+        self.assertIsNone(logout_payload["namespace"])
 
     def test_protected_routes_require_authentication(self) -> None:
         connections = self.client.get("/api/connections")

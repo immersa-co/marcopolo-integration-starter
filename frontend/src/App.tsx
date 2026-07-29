@@ -26,6 +26,8 @@ type AuthSession = {
   marcoPoloAuthModeConfigured: boolean
   marcoPoloConfigured: boolean
   marcoPoloProvisioned: boolean
+  company: string | null
+  namespace: string | null
 }
 
 type RuntimeSkill = {
@@ -204,7 +206,7 @@ function App() {
   const chatTranscriptRef = useRef<HTMLDivElement | null>(null)
   const connectRedirectAttemptRef = useRef<string | null>(null)
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
-  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'developer_api_token'
+  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'workos_connect'
   const usesWorkosConnect = selectedMarcoPoloAuthMode === 'workos_connect'
   const selectableMarcoPoloModes =
     config?.marcoPolo.availableAuthModes.filter((mode) => ['developer_api_token', 'workos_connect'].includes(mode.key)) ?? []
@@ -788,7 +790,8 @@ function App() {
           <div className="auth-header">
             <p className="auth-brand">MarcoPolo Integration Demo</p>
             <p className="auth-copy">
-              Enter any email address and the demo will establish MarcoPolo access using the selected integration mode.
+              Enter the partner application's authenticated user as a Test User. WorkOS Connect will authenticate that
+              user and return MarcoPolo's issuer-resolved partner namespace.
             </p>
           </div>
           {config ? (
@@ -843,7 +846,7 @@ function App() {
   return (
     <main className="app-shell">
       <section className="hero-panel">
-        <p className="kicker">Connect using MarcoPolo Token</p>
+        <p className="kicker">WorkOS Connect partner namespace E2E</p>
         <div className="hero-copy">
           <div>
             <h1>MarcoPolo Integration Demo</h1>
@@ -892,6 +895,30 @@ function App() {
                 <p className="status-inline">
                   {config.marcoPolo.authModeDescription}
                 </p>
+              </div>
+            ) : null}
+            {session?.authenticated ? (
+              <div className="resolved-identity" aria-label="MarcoPolo resolved identity">
+                <div className="resolved-identity-header">
+                  <p className="section-label">MarcoPolo resolved identity</p>
+                  <span className={session.marcoPoloProvisioned ? 'pill ready' : 'pill pending'}>
+                    {session.marcoPoloProvisioned ? 'Bootstrap complete' : 'Waiting for bootstrap'}
+                  </span>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Namespace</dt>
+                    <dd>
+                      {session.namespace ?? (usesWorkosConnect ? 'Pending WorkOS bootstrap' : 'Not provided by local shortcut')}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Company</dt>
+                    <dd>
+                      {session.company ?? (usesWorkosConnect ? 'Pending WorkOS bootstrap' : 'Not provided by local shortcut')}
+                    </dd>
+                  </div>
+                </dl>
               </div>
             ) : null}
           </div>
