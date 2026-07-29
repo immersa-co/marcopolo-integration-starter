@@ -41,7 +41,7 @@ export default function useAuthRuntime({
   const [impersonateEmail, setImpersonateEmail] = useState('')
   const connectRedirectAttemptRef = useRef<string | null>(null)
 
-  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'developer_api_token'
+  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'workos_connect'
   const usesWorkosConnect = selectedMarcoPoloAuthMode === 'workos_connect'
   const selectableMarcoPoloModes =
     config?.marcoPolo.availableAuthModes.filter((mode) => ['developer_api_token', 'workos_connect'].includes(mode.key)) ?? []

@@ -63,6 +63,7 @@ Contains:
 - Test User session creation
 - selected auth mode persistence
 - WorkOS Connect redirect and callback handling
+- Marcopolo `/api/auth/bootstrap` exchange and authoritative company/namespace session state
 - Connect refresh handling
 
 ### MarcoPolo integration layer

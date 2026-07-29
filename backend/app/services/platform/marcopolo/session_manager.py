@@ -73,6 +73,11 @@ class MarcoPoloSessionManager:
         return MarcoPoloSession(access_token=token)
 
     async def _workos_connect_session(self, user_session: UserSession) -> MarcoPoloSession:
+        if not user_session.marcopolo_provisioned:
+            raise MarcoPoloSessionManagerError(
+                "MarcoPolo bootstrap is required for WorkOS Connect mode.",
+                status_code=401,
+            )
         token = (user_session.marcopolo_access_token or "").strip()
         if not token:
             raise MarcoPoloSessionManagerError(
@@ -173,7 +178,6 @@ class MarcoPoloSessionManager:
         auth_payload["marcopolo_token_type"] = token_type if isinstance(token_type, str) and token_type.strip() else auth_payload.get("marcopolo_token_type")
         auth_payload["marcopolo_expires_at"] = _compute_expires_at(expires_in)
         auth_payload["marcopolo_auth_mode"] = "workos_connect"
-        auth_payload["marcopolo_provisioned"] = True
         store.set(user_session.auth_session_id, auth_payload)
 
     def _clear_workos_connect_session(self, user_session: UserSession) -> None:
@@ -191,6 +195,8 @@ class MarcoPoloSessionManager:
         auth_payload["marcopolo_token_type"] = None
         auth_payload["marcopolo_expires_at"] = None
         auth_payload["marcopolo_provisioned"] = False
+        auth_payload["company"] = None
+        auth_payload["namespace"] = None
         store.set(user_session.auth_session_id, auth_payload)
 
 

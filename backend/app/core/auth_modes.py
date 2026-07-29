@@ -26,23 +26,13 @@ class MarcoPoloAuthModeDefinition:
 
 
 MARCOPOLO_AUTH_MODES: dict[str, MarcoPoloAuthModeDefinition] = {
-    "developer_api_token": MarcoPoloAuthModeDefinition(
-        key="developer_api_token",
-        label="Developer API Token",
-        description=(
-            "Use a developer API token generated from an existing MarcoPolo web session. "
-            "This attaches the Integration Demo to the token owner's workspace and is the "
-            "simplest way to configure or browse an already provisioned workspace."
-        ),
-        required_env_vars=("MARCOPOLO_DEVELOPER_API_TOKEN",),
-        implemented=True,
-    ),
     "workos_connect": MarcoPoloAuthModeDefinition(
         key="workos_connect",
-        label="WorkOS Connect Token",
+        label="WorkOS Connect (partner E2E)",
         description=(
-            "Use a dedicated WorkOS Standalone Connect OAuth application to mint a "
-            "MarcoPolo-compatible access token for the selected demo user."
+            "Recommended partner E2E path: authenticate the Test User through the "
+            "Entelligence WorkOS Connect app, bootstrap MarcoPolo, and use its "
+            "issuer-resolved namespace and company."
         ),
         required_env_vars=(
             "WORKOS_CONNECT_AUTH_URL",
@@ -51,6 +41,16 @@ MARCOPOLO_AUTH_MODES: dict[str, MarcoPoloAuthModeDefinition] = {
             "WORKOS_CONNECT_CLIENT_SECRET",
             "WORKOS_CONNECT_REDIRECT_URI",
         ),
+        implemented=True,
+    ),
+    "developer_api_token": MarcoPoloAuthModeDefinition(
+        key="developer_api_token",
+        label="Developer API Token (local shortcut)",
+        description=(
+            "Local-only shortcut for an already provisioned MarcoPolo workspace. "
+            "This is not the partner namespace E2E authentication path."
+        ),
+        required_env_vars=("MARCOPOLO_DEVELOPER_API_TOKEN",),
         implemented=True,
     ),
 }

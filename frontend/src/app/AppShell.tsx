@@ -35,7 +35,7 @@ export default function AppShell({
   return (
     <main className="app-shell">
       <section className="hero-panel">
-        <p className="kicker">Connect using MarcoPolo Token</p>
+        <p className="kicker">WorkOS Connect partner namespace E2E</p>
         <div className="hero-copy">
           <div>
             <h1>MarcoPolo Integration Demo</h1>
@@ -82,6 +82,30 @@ export default function AppShell({
               </div>
               <p className="status-inline">{config.marcoPolo.authModeDescription}</p>
             </div>
+            {session.authenticated ? (
+              <div className="resolved-identity" aria-label="MarcoPolo resolved identity">
+                <div className="resolved-identity-header">
+                  <p className="section-label">MarcoPolo resolved identity</p>
+                  <span className={session.marcoPoloProvisioned ? 'pill ready' : 'pill pending'}>
+                    {session.marcoPoloProvisioned ? 'Bootstrap complete' : 'Waiting for bootstrap'}
+                  </span>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Namespace</dt>
+                    <dd>
+                      {session.namespace ?? (usesWorkosConnect ? 'Pending WorkOS bootstrap' : 'Not provided by local shortcut')}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Company</dt>
+                    <dd>
+                      {session.company ?? (usesWorkosConnect ? 'Pending WorkOS bootstrap' : 'Not provided by local shortcut')}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ) : null}
           </div>
           <div className="session-actions">
             {session.authenticated ? (

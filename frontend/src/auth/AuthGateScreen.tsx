@@ -35,7 +35,8 @@ export default function AuthGateScreen({
         <div className="auth-header">
           <p className="auth-brand">MarcoPolo Integration Demo</p>
           <p className="auth-copy">
-            Enter any email address and the demo will establish MarcoPolo access using the selected integration mode.
+            Enter the partner application's authenticated user as a Test User. WorkOS Connect will authenticate that
+            user and return MarcoPolo's issuer-resolved partner namespace.
           </p>
         </div>
         {config ? (
