@@ -3,14 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 
-from ..config import Settings, get_settings
-from ..dependencies import (
+from ..core.config import Settings, get_settings
+from ..core.dependencies import (
     get_auth_service,
     get_current_session,
     require_authenticated_session,
 )
-from ..marcopolo_auth_modes import get_auth_mode_definition, is_auth_mode_configured
-from ..models import AuthSessionResponse
+from ..core.auth_modes import get_auth_mode_definition, is_auth_mode_configured
+from ..models.api import AuthSessionResponse
 from ..services.auth import AuthPlatformError, AuthPlatformService, UserSession
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -109,6 +109,10 @@ async def authorize_marcopolo_connect(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
+# WorkOS Standalone Connect redirects here after AuthKit determines that the
+# application must authenticate the user in its own system. WorkOS provides
+# `external_auth_id`, and this handler binds that external flow to the current
+# demo session before handing control back to AuthKit.
 @router.get("/workos/login")
 async def workos_connect_login(
     request: Request,

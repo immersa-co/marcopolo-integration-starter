@@ -5,11 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .api.auth import router as auth_router
-from .api.chat import router as chat_router
-from .api.config import router as config_router
+from .api.chatbot import router as chat_router
+from .api.configuration import router as config_router
 from .api.connections import router as connections_router
 from .api.integrations import router as integrations_router
-from .config import get_settings
+from .core.config import get_settings
 
 
 def create_app() -> FastAPI:

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "list-visible-connections",
+    "prompt": "What MarcoPolo connections are currently visible to this user?",
+    "expected_tool": "workspace_shell",
+    "expected_result_kind": "table",
+    "connector_type": "meta"
+  },
+  {
+    "id": "browse-google-drive",
+    "prompt": "In Google Drive, show the top folders I can browse.",
+    "expected_tool": "workspace_shell",
+    "expected_result_kind": "browse",
+    "connector_type": "google_drive"
+  },
+  {
+    "id": "query-snowflake",
+    "prompt": "In snowflake-demo, show the top 10 customers by revenue.",
+    "expected_tool": "workspace_shell",
+    "expected_result_kind": "table",
+    "connector_type": "snowflake"
+  },
+  {
+    "id": "query-github",
+    "prompt": "In GitHub, list the pull requests updated this week.",
+    "expected_tool": "workspace_shell",
+    "expected_result_kind": "table",
+    "connector_type": "github"
+  }
+]

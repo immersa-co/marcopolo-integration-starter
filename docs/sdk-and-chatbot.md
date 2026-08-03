@@ -19,7 +19,7 @@ Use this when:
 
 Current implementation entrypoint:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
 
 Flow:
 
@@ -34,33 +34,53 @@ Why this matters:
 
 - it shows how a normal application backend can call MarcoPolo without adopting MCP directly in every feature
 
-## 2. Agent Path: MCP Tools Through LangGraph
+## 2. Chatbot Path: MCP-Only LangGraph Agent
 
-The `Chatbot` tab demonstrates an agent flow that uses MarcoPolo MCP tools.
+The `Chatbot` tab demonstrates an MCP-only agent flow. It does not call `marcopolo-sdk`.
 
 Current implementation entrypoints:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/langgraph_agent.py`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/service.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/runtime.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/mcp_client.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/tool_registry.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/context_loader.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/response_parser.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/chatbot.py`
 
 Flow:
 
 1. accept a natural-language prompt
-2. inspect visible connections
-3. pick the best matching connection
-4. choose a mode such as `browse` or `query`
-5. invoke MarcoPolo MCP-backed commands
-6. render final text and preview rows in the UI
+2. resolve the current MarcoPolo bearer token through the shared session manager
+3. open a direct Streamable HTTP MCP session against MarcoPolo
+4. list the raw MarcoPolo MCP tools and bind them into LangChain `StructuredTool` wrappers
+5. preload the three core MarcoPolo skills into the system prompt:
+   - `query-and-analyze`
+   - `using-connection-cli`
+   - `using-marcopolo-workspace`
+6. run a LangGraph `create_react_agent(...)` loop so the model can choose tools dynamically
+7. let the model use `workspace_shell` and the other raw MCP tools directly
+8. normalize `workspace_shell` payloads so nested `stdout` JSON becomes preview rows in the UI
+9. stream tool-selection and tool-return status events to the frontend, then render final text and any preview table
 
 Why this matters:
 
-- it shows how an AI agent can use MarcoPolo as the data and tool layer
+- it mirrors the intended MarcoPolo tool surface instead of hiding it behind an SDK adapter
+- it keeps the chatbot behavior closer to how Claude or ChatGPT reason over MCP tools and skills
+- it demonstrates that LangGraph can orchestrate a reasoning model over raw MarcoPolo tools without hardcoding a bespoke query planner
+
+Important design choices:
+
+- the chatbot path shares auth resolution with the rest of the app, so it works with either `MARCOPOLO_DEVELOPER_API_TOKEN` or `WorkOS Connect`
+- the chatbot path intentionally trusts the model plus the preloaded MarcoPolo skills rather than hardcoding a fixed "always read syntax first" workflow
+- connection-specific files are expected to be read dynamically through `workspace_shell` when the model decides they are needed
+- the repository now contains a single authoritative chatbot path under `backend/app/services/chatbot/`
 
 ## How to Extend the Integrations Tab
 
 To add new examples:
 
-1. add a new `DataConnectionOperationSpec` in `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+1. add a new `DataConnectionOperationSpec` in `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
 2. provide:
    - title
    - prompt
@@ -76,10 +96,31 @@ Important design choice:
 
 That makes the examples more stable across different workspaces.
 
+## How to Evaluate the MCP-Only Chatbot Path
+
+Backend tests:
+
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/tests/test_api_smoke.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/tests/test_ai_agent_runtime.py`
+
+Prompt corpus for regression checks:
+
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/tests/fixtures/ai_agent_eval_cases.json`
+
+Run:
+
+```bash
+.venv/bin/python -m unittest backend.tests.test_api_smoke backend.tests.test_ai_agent_runtime
+```
+
+Manual smoke test:
+
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/how-to-sanity-test.md`
+
 ## Recommended First Validation
 
 1. install the Salesforce demo connection
 2. run the Salesforce integration example
-3. ask the Chatbot a Salesforce question
+3. ask the Chatbot a Salesforce or connection-list question
 4. add Jira
 5. add a Jira integration example or ask the Chatbot about Jira

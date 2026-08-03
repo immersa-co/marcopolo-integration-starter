@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from ..dependencies import get_marcopolo_service, require_marcopolo_access
-from ..models import DataConnectionOperationResponse, DataConnectionOperationsResponse
+from ..core.dependencies import get_marcopolo_service, require_marcopolo_access
+from ..models.api import DataConnectionOperationResponse, DataConnectionOperationsResponse
 from ..services.auth import UserSession
-from ..services.marcopolo import MarcoPoloService, MarcoPoloServiceError
+from ..services.platform import MarcoPoloService, MarcoPoloServiceError
 
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 

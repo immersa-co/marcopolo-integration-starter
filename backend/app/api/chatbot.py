@@ -3,11 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sse_starlette import EventSourceResponse
 
-from ..dependencies import get_agent_service, get_chat_store, require_marcopolo_access
-from ..models import ChatCreateRequest, ChatCreateResponse
+from ..core.dependencies import get_agent_service, get_chat_store, require_marcopolo_access
+from ..models.api import ChatCreateRequest, ChatCreateResponse
 from ..services.auth import UserSession
-from ..services.chat import ChatStore
-from ..services.langgraph_agent import IntegrationDemoAgentService
+from ..services.chatbot import ChatStore, IntegrationDemoAgentService
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 

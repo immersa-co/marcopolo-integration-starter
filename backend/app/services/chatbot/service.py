@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import uuid4
 
-from .auth import UserSession
+from ..auth import UserSession
 
 
 @dataclass

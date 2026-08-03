@@ -139,7 +139,8 @@ This component is responsible for:
 
 The main application flow lives in:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/App.tsx`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/connections/ConnectionsTab.tsx`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/connections/useConnectionsFeature.ts`
 
 The user flow is:
 
@@ -156,7 +157,7 @@ The backend routes live in:
 
 The MarcoPolo integration layer lives in:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
 
 The backend:
 
@@ -206,7 +207,7 @@ Relevant code:
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/EmbeddedConnectionSetupHost.tsx`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/connections.py`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
 
 ### Google Drive special case
 

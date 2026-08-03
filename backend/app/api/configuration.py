@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from ..config import Settings, get_settings
-from ..dependencies import get_auth_service, get_skill_registry
-from ..marcopolo_auth_modes import get_auth_mode_definition, is_auth_mode_configured, list_auth_mode_definitions
-from ..models import (
+from ..core.config import Settings, get_settings
+from ..core.dependencies import get_auth_service, get_skill_registry
+from ..core.auth_modes import get_auth_mode_definition, is_auth_mode_configured, list_auth_mode_definitions
+from ..models.api import (
     PublicConfigResponse,
     PublicMarcoPoloAuthModeOption,
     RuntimeSkillSummary,
 )
 from ..services.auth import AuthPlatformService
-from ..services.skills import SkillRegistry
+from ..services.platform import SkillRegistry
 
 router = APIRouter(prefix="/api", tags=["config"])
 

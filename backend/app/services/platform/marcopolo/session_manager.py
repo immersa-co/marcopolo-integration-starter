@@ -6,10 +6,9 @@ from typing import Any
 
 import httpx
 
-from ..config import Settings
-from ..marcopolo_auth_modes import get_auth_mode_definition
-from .auth import UserSession
-from .auth_session_store import get_auth_session_store
+from ....core.config import Settings
+from ....core.auth_modes import get_auth_mode_definition
+from ...auth import UserSession, get_auth_session_store
 
 
 class MarcoPoloSessionManagerError(RuntimeError):
