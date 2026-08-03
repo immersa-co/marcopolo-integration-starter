@@ -3,12 +3,15 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, Request, status
 
 from .config import Settings, get_settings
-from .services.auth import AuthPlatformService, UserSession, user_session_from_auth_payload
-from .services.auth_session_store import AUTH_SESSION_ID_KEY, get_auth_session_store
-from .services.chat import ChatStore, get_chat_store as _get_chat_store
-from .services.langgraph_agent import IntegrationDemoAgentService
-from .services.marcopolo import MarcoPoloService
-from .services.skills import SkillRegistry, load_skill_registry
+from ..services.chatbot import ChatStore, IntegrationDemoAgentService, get_chat_store as _get_chat_store
+from ..services.auth import (
+    AUTH_SESSION_ID_KEY,
+    AuthPlatformService,
+    UserSession,
+    get_auth_session_store,
+    user_session_from_auth_payload,
+)
+from ..services.platform import MarcoPoloService, SkillRegistry, load_skill_registry
 
 
 def get_auth_service(settings: Settings = get_settings()) -> AuthPlatformService:

@@ -8,7 +8,7 @@ This guide is the recommended onboarding path for `marcopolo-integration-starter
 - how to switch to WorkOS Connect token mode
 - how to list and configure MarcoPolo connections from a custom web app
 - how to use `marcopolo-sdk` for traditional product integrations
-- how to use MarcoPolo MCP tools from a LangGraph agent
+- how to use raw MarcoPolo MCP tools from an MCP-only LangGraph agent
 - how the embedded MCP app connection configuration approach works
 
 ## Recommended Learning Path
@@ -83,7 +83,7 @@ References:
 
 Relevant implementation:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
 
 The important flow is:
 
@@ -109,14 +109,15 @@ This demonstrates a product feature invoking MarcoPolo through `marcopolo-sdk` w
 In `Chatbot`:
 
 1. Ask a Salesforce question such as `List top 5 customer accounts by revenue from Salesforce.`
-2. Confirm the progress stream advances through the LangGraph steps
+2. Confirm the progress stream advances through tool-selection and tool-return status events
 3. Confirm preview rows render in the table output
 
 This demonstrates the agent path:
 
-- LangGraph plans the request
-- the backend selects a visible MarcoPolo connection
-- the backend invokes MarcoPolo MCP-backed commands
+- the backend opens a direct MCP session to MarcoPolo
+- LangGraph runs a tool-calling loop over the raw MarcoPolo MCP tools
+- the model can use `workspace_shell` and other exposed MCP tools directly
+- the backend normalizes nested `workspace_shell` results into preview rows
 - the final response and preview rows are rendered in the chat UI
 
 ### 7. Configure and Test Other Connections
@@ -131,7 +132,7 @@ After Salesforce is working:
 
 To add more SDK-driven examples, edit the SDK example definitions in:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
 
 For a deeper explanation of how the embedded connection configuration host works, read:
 
@@ -164,3 +165,4 @@ If Connect mode is correctly configured, the same app behaviors should work with
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/sdk-and-chatbot.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/repo-map.md`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/known-limitations.md`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/how-to-sanity-test.md`

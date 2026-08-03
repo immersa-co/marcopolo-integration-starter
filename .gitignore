@@ -6,6 +6,7 @@ __pycache__/
 .pytest_cache/
 .runlogs/
 .runlogs_frontend_tmp.log
+.beads
 .beads/
 
 frontend/node_modules/

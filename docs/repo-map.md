@@ -11,16 +11,21 @@ For the higher-level explanation of why embedded connection setup exists and how
 ### App shell and tab UI
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/App.tsx`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/app/AppShell.tsx`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/auth/`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/chatbot/`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/connections/`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/configuration/`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/integrations/`
 
 Contains:
 
-- Test User entry flow
-- auth mode selector
-- connections list and refresh
-- install demo connection form
-- embedded connection setup launcher
-- integrations result rendering
-- chatbot result rendering
+- app bootstrap and tab wiring in `App.tsx`
+- shared shell layout in `app/AppShell.tsx`
+- auth runtime and login screens in `auth/`
+- connections runtime and embedded setup launcher in `connections/`
+- integrations examples in `integrations/`
+- chatbot runtime, trace, and tool inspector in `chatbot/`
 
 ### Embedded MCP app host
 
@@ -36,7 +41,9 @@ Contains:
 
 ### Runtime settings
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/config.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/core/config.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/core/auth_modes.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/core/dependencies.py`
 
 Contains:
 
@@ -44,11 +51,12 @@ Contains:
 - endpoint configuration
 - Developer API token settings
 - WorkOS Connect settings
+- dependency injection and request session resolution
 
 ### Authentication session logic
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth.py`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth_session_store.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth/service.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth/session_store.py`
 
 Contains:
 
@@ -59,7 +67,9 @@ Contains:
 
 ### MarcoPolo integration layer
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/marcopolo.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/service.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/session_manager.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/platform/marcopolo/skills.py`
 
 Contains:
 
@@ -77,14 +87,22 @@ SDK references:
 
 ### Chatbot / LangGraph
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/langgraph_agent.py`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/chat.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/service.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/runtime.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/mcp_client.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/tool_registry.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/context_loader.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/chatbot/ai_agent/response_parser.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/chatbot.py`
 
 Contains:
 
-- prompt planning
-- connection selection
-- MCP-backed execution
+- in-memory chat run storage
+- direct MCP transport to MarcoPolo
+- raw MCP tool binding for LangGraph
+- preloaded MarcoPolo skill bootstrap context
+- MCP-only `create_react_agent(...)` execution
+- `workspace_shell` result normalization
 - streaming status + final results
 
 ### HTTP API routes
@@ -92,7 +110,8 @@ Contains:
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/auth.py`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/connections.py`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/integrations.py`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/config.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/configuration.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/api/chatbot.py`
 
 ## Tests
 
@@ -104,3 +123,5 @@ Covers:
 - auth protections
 - connection selection helpers
 - integration example selection helpers
+- MCP-only runtime streaming and response parsing
+- current smoke flow is documented separately in `docs/how-to-sanity-test.md`

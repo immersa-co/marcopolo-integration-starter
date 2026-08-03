@@ -10,13 +10,13 @@ import httpx
 from marcopolo import MarcoPolo as SDKMarcoPolo
 from marcopolo.errors import ToolResultError
 
-from ..config import Settings
-from .marcopolo_session_manager import (
+from ....core.config import Settings
+from .session_manager import (
     MarcoPoloSession,
     MarcoPoloSessionManager,
     MarcoPoloSessionManagerError,
 )
-from ..models import (
+from ....models.api import (
     ConnectionListItem,
     ConnectionListResponse,
     ConnectionSetupStatusResponse,
@@ -27,7 +27,7 @@ from ..models import (
     EmbeddedConnectionSetupResponse,
     WorkspaceShellResponse,
 )
-from .auth import UserSession
+from ...auth import UserSession
 
 
 class MarcoPoloServiceError(RuntimeError):

@@ -7,23 +7,23 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, Response
 
-from ..dependencies import (
+from ..core.dependencies import (
     get_settings,
     get_marcopolo_service,
     require_marcopolo_access,
 )
-from ..models import (
+from ..models.api import (
     ConnectionListResponse,
     ConnectionSetupStatusResponse,
     DemoConnectionInstallResponse,
 )
-from ..models import (
+from ..models.api import (
     EmbeddedConnectionOAuthInitiateResponse,
     EmbeddedConnectionSetupResponse,
     EmbeddedSetupSessionLookupResponse,
 )
 from ..services.auth import UserSession
-from ..services.marcopolo import MarcoPoloService, MarcoPoloServiceError
+from ..services.platform import MarcoPoloService, MarcoPoloServiceError
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 _HOST_SESSION_LOOKUPS: dict[str, str] = {}

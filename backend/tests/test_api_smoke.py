@@ -2,8 +2,15 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from langchain_core.messages import ToolMessage
 
-from backend.app.services.langgraph_agent import _extract_query_rows, _extract_shell_error, _match_visible_connection
+from backend.app.services.ai_agent.connection_matching import match_visible_connection
+from backend.app.services.ai_agent.response_parser import (
+    extract_preview_rows,
+    extract_tool_error,
+    normalize_tool_payload,
+    parse_tool_message_payload,
+)
 from backend.app.services.marcopolo import (
     _DATA_CONNECTION_OPERATION_SPEC_INDEX,
     _select_operation_connection,
@@ -173,7 +180,7 @@ class ApiSmokeTests(unittest.TestCase):
             },
         ]
 
-        selected = _match_visible_connection(
+        selected = match_visible_connection(
             "List open Jira issues assigned to me this sprint.",
             connections,
         )
@@ -197,7 +204,7 @@ class ApiSmokeTests(unittest.TestCase):
             },
         ]
 
-        selected = _match_visible_connection(
+        selected = match_visible_connection(
             "In Jira, show the top issue counts by assignee.",
             connections,
         )
@@ -228,7 +235,7 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(selected.name, "sfdc-prod-random-slug")
 
     def test_extract_query_rows_supports_data_payload(self) -> None:
-        rows = _extract_query_rows(
+        rows = extract_preview_rows(
             {
                 "success": True,
                 "data": '[{"key":"JIRA-101","summary":"Broken sync"},{"key":"JIRA-102","summary":"Auth bug"}]',
@@ -245,19 +252,55 @@ class ApiSmokeTests(unittest.TestCase):
         )
 
     def test_extract_shell_error_reads_structured_query_failure(self) -> None:
-        message = _extract_shell_error(
+        message = extract_tool_error(
             {
                 "success": False,
                 "stdout": '{"success": false, "message": "Query execution failed: runtime missing"}',
                 "stderr": "",
-            },
-            {
-                "success": False,
-                "message": "Query execution failed: runtime missing",
-            },
+            }
         )
 
         self.assertEqual(message, "Query execution failed: runtime missing")
+
+    def test_ai_agent_response_parser_normalizes_workspace_shell_stdout(self) -> None:
+        payload = {
+            "structuredContent": {
+                "success": True,
+                "exit_code": 0,
+                "stdout": (
+                    '{"success": true, "connections": ['
+                    '{"name": "snowflake-prod", "type": "snowflake"}, '
+                    '{"name": "github-main", "type": "github"}'
+                    "], \"count\": 2}"
+                ),
+                "stderr": "",
+            },
+            "isError": False,
+        }
+
+        normalized = normalize_tool_payload(payload, tool_name="workspace_shell")
+
+        self.assertEqual(normalized["success"], True)
+        self.assertIn("stdout_parsed", normalized)
+        self.assertEqual(normalized["stdout_parsed"]["count"], 2)
+
+    def test_ai_agent_response_parser_extracts_workspace_shell_rows(self) -> None:
+        message = ToolMessage(
+            content='{"structuredContent":{"success":true,"exit_code":0,"stdout":"{\\"success\\": true, \\"connections\\": [{\\"name\\": \\"snowflake-prod\\", \\"type\\": \\"snowflake\\"}, {\\"name\\": \\"github-main\\", \\"type\\": \\"github\\"}]}"}}',
+            tool_call_id="call_123",
+            name="workspace_shell",
+        )
+
+        payload = parse_tool_message_payload(message)
+        rows = extract_preview_rows(payload, tool_name=message.name)
+
+        self.assertEqual(
+            rows,
+            [
+                {"name": "snowflake-prod", "type": "snowflake"},
+                {"name": "github-main", "type": "github"},
+            ],
+        )
 
     def test_validate_marcopolo_email_identity_accepts_email(self) -> None:
         user = UserProfile(

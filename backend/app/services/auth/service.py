@@ -11,10 +11,10 @@ import httpx
 from fastapi import Request
 from fastapi.responses import RedirectResponse
 
-from ..config import Settings
-from ..marcopolo_auth_modes import get_auth_mode_definition
-from ..models import UserProfile
-from .auth_session_store import get_auth_session_store
+from ...core.config import Settings
+from ...core.auth_modes import get_auth_mode_definition
+from ...models.api import UserProfile
+from .session_store import get_auth_session_store
 
 _WORKOS_CONNECT_RETURN_TO_SESSION_KEY = "workos_connect_return_to"
 _WORKOS_CONNECT_STATE_SESSION_KEY = "workos_connect_state"
