@@ -4,20 +4,20 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from langchain_core.messages import ToolMessage
 
-from backend.app.services.ai_agent.connection_matching import match_visible_connection
-from backend.app.services.ai_agent.response_parser import (
+from backend.app.services.chatbot.ai_agent.connection_matching import match_visible_connection
+from backend.app.services.chatbot.ai_agent.response_parser import (
     extract_preview_rows,
     extract_tool_error,
     normalize_tool_payload,
     parse_tool_message_payload,
 )
-from backend.app.services.marcopolo import (
+from backend.app.services.platform.marcopolo.service import (
     _DATA_CONNECTION_OPERATION_SPEC_INDEX,
     _select_operation_connection,
 )
 from backend.app.services.auth import AuthPlatformError, validate_marcopolo_email_identity
 from backend.app.main import app
-from backend.app.models import ConnectionListItem, UserProfile
+from backend.app.models.api import ConnectionListItem, UserProfile
 
 
 class ApiSmokeTests(unittest.TestCase):

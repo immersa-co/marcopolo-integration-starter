@@ -3,15 +3,17 @@ from unittest.mock import patch
 
 import httpx
 
-from backend.app.config import Settings
+from backend.app.core.config import Settings
 from backend.app.services.auth import (
     AuthPlatformError,
     AuthPlatformService,
-    _normalized_auth_payload_for_mode,
-    _parse_marcopolo_bootstrap_response,
     user_session_from_auth_payload,
 )
-from backend.app.services.auth_session_store import get_auth_session_store
+from backend.app.services.auth.session_store import get_auth_session_store
+from backend.app.services.auth.service import (
+    _normalized_auth_payload_for_mode,
+    _parse_marcopolo_bootstrap_response,
+)
 
 
 def _fake_async_client(responses: list[httpx.Response], requests: list[dict[str, object]]):
@@ -132,7 +134,7 @@ class AuthSessionContractTests(unittest.IsolatedAsyncioTestCase):
 
         try:
             with patch(
-                "backend.app.services.auth.httpx.AsyncClient",
+                "backend.app.services.auth.service.httpx.AsyncClient",
                 _fake_async_client(responses, requests),
             ):
                 response = await AuthPlatformService(settings).complete_workos_connect(request)
@@ -178,7 +180,7 @@ class AuthSessionContractTests(unittest.IsolatedAsyncioTestCase):
 
         try:
             with patch(
-                "backend.app.services.auth.httpx.AsyncClient",
+                "backend.app.services.auth.service.httpx.AsyncClient",
                 _fake_async_client(responses, requests),
             ):
                 with self.assertRaisesRegex(AuthPlatformError, "namespace registry unavailable"):

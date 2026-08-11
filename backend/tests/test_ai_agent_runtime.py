@@ -5,13 +5,13 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from langchain_core.messages import AIMessage, ToolMessage
 
-from backend.app.config import get_settings
-from backend.app.models import UserProfile
-from backend.app.services.ai_agent.context_loader import AgentBootstrapContext
-from backend.app.services.ai_agent.runtime import IntegrationDemoAgentService, _system_prompt
+from backend.app.core.config import get_settings
+from backend.app.models.api import UserProfile
+from backend.app.services.chatbot.ai_agent.context_loader import AgentBootstrapContext
+from backend.app.services.chatbot.ai_agent.runtime import IntegrationDemoAgentService, _system_prompt
 from backend.app.services.auth import UserSession
-from backend.app.services.chat import ChatRun
-from backend.app.services.skills import SkillRegistry
+from backend.app.services.chatbot.service import ChatRun
+from backend.app.services.platform.marcopolo.skills import SkillRegistry
 
 
 class _FakeStreamingAgent:
@@ -98,7 +98,7 @@ class AiAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         chat_run = ChatRun(chat_id="chat-1", message="List connections", user_session=session)
 
         with patch(
-            "backend.app.services.ai_agent.runtime.create_react_agent",
+            "backend.app.services.chatbot.ai_agent.runtime.create_react_agent",
             return_value=_FakeStreamingAgent(updates),
         ):
             events = [event async for event in self.service.stream_chat(chat_run)]
