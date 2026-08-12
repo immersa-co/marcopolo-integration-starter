@@ -86,6 +86,7 @@ export default function EmbeddedConnectionSetupHost({
   onRefreshConnections,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const iframeLoadHandlerRef = useRef<(() => void) | null>(null)
   const popupWindowsRef = useRef<Window[]>([])
   const oauthPollIdRef = useRef(0)
   const hostSessionIdRef = useRef(
@@ -306,10 +307,6 @@ export default function EmbeddedConnectionSetupHost({
     let closed = false
     let bridge: AppBridge | null = null
 
-    iframe.src = `${apiBaseUrl}/api/connections/ext-app/connection-setup?resourceUri=${encodeURIComponent(
-      currentPayload.resourceUri,
-    )}`
-
     const handleLoad = () => {
       const targetWindow = iframe.contentWindow
       if (!targetWindow || closed) {
@@ -426,12 +423,17 @@ export default function EmbeddedConnectionSetupHost({
       })
     }
 
-    iframe.addEventListener('load', handleLoad)
+    iframeLoadHandlerRef.current = handleLoad
+    iframe.src = `${apiBaseUrl}/api/connections/ext-app/connection-setup?resourceUri=${encodeURIComponent(
+      currentPayload.resourceUri,
+    )}`
 
     return () => {
       closed = true
       closeAllPopupWindows()
-      iframe.removeEventListener('load', handleLoad)
+      if (iframeLoadHandlerRef.current === handleLoad) {
+        iframeLoadHandlerRef.current = null
+      }
       if (bridge) {
         void bridge.close().catch(() => {})
       }
@@ -501,7 +503,7 @@ export default function EmbeddedConnectionSetupHost({
           ref={iframeRef}
           title="MarcoPolo connection setup"
           className="embedded-host-frame"
-          src="about:blank"
+          onLoad={() => iframeLoadHandlerRef.current?.()}
           style={{ height: `${iframeHeight}px` }}
         />
       ) : null}
