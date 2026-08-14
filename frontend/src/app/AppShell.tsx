@@ -35,7 +35,7 @@ export default function AppShell({
   return (
     <main className="app-shell">
       <section className="hero-panel">
-        <p className="kicker">WorkOS Connect partner namespace E2E</p>
+        <p className="kicker">Partner integration reference · WorkOS Standalone Connect</p>
         <div className="hero-copy">
           <div>
             <h1>MarcoPolo Integration Demo</h1>
@@ -52,13 +52,13 @@ export default function AppShell({
             <p className="section-label">Identity</p>
             <h2>
               {session.authenticated
-                ? `Test user${session.user?.email ? ` ${session.user.email}` : ''}`
+                ? `Demo app user${session.user?.email ? ` ${session.user.email}` : ''}`
                 : 'Authentication required'}
             </h2>
             <p className="session-detail">
               {session.authenticated
-                ? `${session.user?.email ?? 'No email entered'}${session.provider ? ` · ${session.provider}` : ''}`
-                : 'Select a test user email to establish the demo app session.'}
+                ? `${session.user?.email ?? 'No email entered'} · simulated partner app session`
+                : 'Create a demo app session to represent a user already authenticated by the partner application.'}
             </p>
             <div className="auth-mode-picker">
               <p className="section-label">MarcoPolo auth mode</p>
@@ -87,20 +87,20 @@ export default function AppShell({
                 <div className="resolved-identity-header">
                   <p className="section-label">MarcoPolo resolved identity</p>
                   <span className={session.marcoPoloProvisioned ? 'pill ready' : 'pill pending'}>
-                    {session.marcoPoloProvisioned ? 'Bootstrap complete' : 'Waiting for bootstrap'}
+                    {session.marcoPoloProvisioned ? 'MarcoPolo access ready' : 'Waiting for authorization'}
                   </span>
                 </div>
                 <dl>
                   <div>
                     <dt>Namespace</dt>
                     <dd>
-                      {session.namespace ?? (usesWorkosConnect ? 'Pending WorkOS bootstrap' : 'Not provided by local shortcut')}
+                      {session.namespace ?? (usesWorkosConnect ? 'Pending Standalone Connect authorization' : 'Not provided by local shortcut')}
                     </dd>
                   </div>
                   <div>
                     <dt>Company</dt>
                     <dd>
-                      {session.company ?? (usesWorkosConnect ? 'Pending WorkOS bootstrap' : 'Not provided by local shortcut')}
+                      {session.company ?? (usesWorkosConnect ? 'Pending Standalone Connect authorization' : 'Not provided by local shortcut')}
                     </dd>
                   </div>
                 </dl>
@@ -114,7 +114,7 @@ export default function AppShell({
               </button>
             ) : null}
             {session.authenticated && usesWorkosConnect && !session.marcoPoloProvisioned && config.marcoPolo.authModeConfigured ? (
-              <p className="status-text">Completing MarcoPolo Connect sign-in...</p>
+              <p className="status-text">Completing WorkOS Standalone Connect authorization...</p>
             ) : null}
             {sessionError ? <p className="status-text">{sessionError}</p> : null}
           </div>

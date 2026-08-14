@@ -86,7 +86,7 @@ class AiAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
             providerSubject="test-user",
             subject="test-user",
             email="test@example.com",
-            name="Test User",
+            name="Demo User",
             issuer="local",
             emailVerified=True,
         )

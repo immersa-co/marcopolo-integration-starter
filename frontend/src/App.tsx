@@ -29,9 +29,9 @@ function App() {
     configError,
     sessionError,
     modeSelectionBusy,
-    impersonateBusy,
-    impersonateEmail,
-    setImpersonateEmail,
+    demoSessionBusy,
+    demoUserEmail,
+    setDemoUserEmail,
     selectableMarcoPoloModes,
     selectedMarcoPoloAuthMode,
     usesWorkosConnect,
@@ -39,7 +39,7 @@ function App() {
     shouldGateApp,
     handleLogout,
     handleMarcoPoloAuthModeChange,
-    handleImpersonateSubmit,
+    handleDemoSessionSubmit,
   } = useAuthRuntime({
     apiBaseUrl,
     onResetAppState: resetAppState,
@@ -133,15 +133,15 @@ function App() {
         selectableMarcoPoloModes={selectableMarcoPoloModes}
         selectedMarcoPoloAuthMode={selectedMarcoPoloAuthMode}
         modeSelectionBusy={modeSelectionBusy}
-        impersonateBusy={impersonateBusy}
-        impersonateEmail={impersonateEmail}
+        demoSessionBusy={demoSessionBusy}
+        demoUserEmail={demoUserEmail}
         sessionError={sessionError}
         configError={configError}
         onMarcoPoloAuthModeChange={(mode) => {
           void handleMarcoPoloAuthModeChange(mode)
         }}
-        onImpersonateEmailChange={setImpersonateEmail}
-        onImpersonateSubmit={handleImpersonateSubmit}
+        onDemoUserEmailChange={setDemoUserEmail}
+        onDemoSessionSubmit={handleDemoSessionSubmit}
       />
     )
   }

@@ -7,7 +7,7 @@ It is a local reference app with separate frontend and backend processes that sh
 - embedded connection setup through MarcoPolo MCP apps
 - traditional product integrations through `marcopolo-sdk`
 - agentic workflows through raw MarcoPolo MCP tools and LangGraph
-- WorkOS Connect Standalone token minting for the selected demo user
+- WorkOS Standalone Connect authorization for a user already authenticated by the partner application
 
 The running app is intentionally presented as **MarcoPolo Integration Demo**. The repository name is **marcopolo-integration-starter** because it is meant to be copied, studied, and extended by developers.
 
@@ -23,13 +23,13 @@ Recommended first path:
 1. Copy `.env.example` to `.env` and fill the empty local secret values
 2. Start the local Marcopolo stack on `http://localhost:8000`
 3. Start the starter backend and frontend
-4. Select `WorkOS Connect (partner E2E)` and enter the partner user's email as the Test User
-5. Complete the Entelligence WorkOS Connect flow
+4. Select `WorkOS Standalone Connect (recommended)` and create a demo app session for the partner user
+5. Complete the Entelligence WorkOS Standalone Connect flow
 6. Confirm the resolved `namespace` and `company` in the session strip
 7. Install the Salesforce demo connection and validate the `Integrations` and `Chatbot` tabs
 
-The Test User is a demo harness for the partner application's authenticated user. WorkOS Connect is the only
-partner namespace authentication path; the developer-token mode is only a local shortcut for an already provisioned
+The demo app session represents a user the partner application has already authenticated. WorkOS Standalone Connect
+then authorizes MarcoPolo access and resolves the partner namespace; the developer-token mode is only a local shortcut for an already provisioned
 workspace and must not be used to validate partner routing.
 
 For the exact browser-based regression flow the repo now uses, see:
@@ -59,7 +59,7 @@ Open `http://localhost:5173`.
 
 - Developer Guide: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/README.md`
 - Authentication Modes: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/authentication-modes.md`
-- WorkOS Connect Standalone Flow: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/workos-connect-authz.md`
+- WorkOS Standalone Connect Flow: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/workos-connect-authz.md`
 - Partner Namespace Manual E2E: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/partner-namespace-manual-e2e.md`
 - Embedded Connection Setup: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
 - SDK and Chatbot Guide: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/sdk-and-chatbot.md`
@@ -71,9 +71,9 @@ Open `http://localhost:5173`.
 
 - `Integrations` is the deterministic product-style path. It uses `marcopolo-sdk` through `backend/app/services/platform/marcopolo/service.py`.
 - `Chatbot` is the MCP-only agent path. It uses `backend/app/services/chatbot/ai_agent/` to open a direct MCP session, load raw MarcoPolo tools, preload the three core MarcoPolo skills, and run a LangGraph `create_react_agent(...)` loop without calling the SDK.
-- Both paths share the same auth/session resolution, so the simplest end-to-end test remains `MARCOPOLO_DEVELOPER_API_TOKEN` first and `WorkOS Connect` second.
+- Both paths share the same auth/session resolution. Use WorkOS Standalone Connect to validate the partner flow; the Developer API Token is only an isolated local shortcut.
 - `Connections` is the embedded MCP-app path. It uses the backend proxy plus `EmbeddedConnectionSetupHost.tsx` to launch and resume connection setup flows inside the demo UI.
-- `WorkOS Connect` in this repo is not the app's primary login system. The demo first creates a local Test User session, then uses WorkOS Connect Standalone to mint a MarcoPolo-compatible token for that selected user.
+- WorkOS Standalone Connect is not the app's primary login system. The demo first creates a local app session for an already-authenticated user, then obtains a WorkOS access token that the backend forwards to MarcoPolo.
 
 ## Current Structure
 
@@ -88,7 +88,7 @@ Backend:
 - `backend/app/models/`
   - API request/response models
 - `backend/app/services/auth/`
-  - local demo session handling and WorkOS Connect orchestration
+  - local demo session handling and WorkOS Standalone Connect orchestration
 - `backend/app/services/chatbot/`
   - chat run storage and the LangGraph MCP-only agent
 - `backend/app/services/platform/marcopolo/`
@@ -114,7 +114,7 @@ Frontend:
 This is a demo, not a production starter kit. It intentionally keeps:
 
 - an in-memory session model
-- a Test User email entry flow
+- a demo app-session email flow
 - a thin backend around MarcoPolo
 - a separate frontend and backend local runtime
 

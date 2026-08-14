@@ -71,7 +71,7 @@ Why this matters:
 
 Important design choices:
 
-- the chatbot path shares auth resolution with the rest of the app, so it works with either `MARCOPOLO_DEVELOPER_API_TOKEN` or `WorkOS Connect`
+- the chatbot path shares auth resolution with the rest of the app, so it works with either `MARCOPOLO_DEVELOPER_API_TOKEN` or WorkOS Standalone Connect
 - the chatbot path intentionally trusts the model plus the preloaded MarcoPolo skills rather than hardcoding a fixed "always read syntax first" workflow
 - connection-specific files are expected to be read dynamically through `workspace_shell` when the model decides they are needed
 - the repository now contains a single authoritative chatbot path under `backend/app/services/chatbot/`

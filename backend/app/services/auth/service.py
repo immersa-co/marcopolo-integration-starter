@@ -130,23 +130,23 @@ class AuthPlatformService:
             )
         return mode
 
-    def impersonate_user(self, request: Request, email: str) -> UserSession:
+    def create_demo_session(self, request: Request, email: str) -> UserSession:
         normalized_email = email.strip().lower()
         if not _EMAIL_PATTERN.match(normalized_email):
-            raise AuthPlatformError("Enter a valid Test User email address.", status_code=422)
+            raise AuthPlatformError("Enter a valid demo user email address.", status_code=422)
 
         selected_mode = self.selected_marcopolo_auth_mode(request)
         user = UserProfile(
-            provider="impersonation",
+            provider="demo_session",
             provider_subject=normalized_email,
-            subject=f"impersonation:{normalized_email}",
+            subject=f"demo_session:{normalized_email}",
             email=normalized_email,
             name=normalized_email,
             issuer="marcopolo-integration-starter",
             email_verified=True,
         )
         auth_payload = {
-            "provider": "impersonation",
+            "provider": "demo_session",
             "user": user.model_dump(mode="json"),
             "issuer": user.issuer,
             "marcopolo_auth_mode": selected_mode,
@@ -171,7 +171,7 @@ class AuthPlatformService:
         if selected_mode != "workos_connect":
             raise AuthPlatformError("MarcoPolo auth mode is not set to workos_connect.", status_code=409)
         if not self._settings.workos_connect_configured:
-            raise AuthPlatformError("WorkOS Connect is not configured for this environment.", status_code=503)
+            raise AuthPlatformError("WorkOS Standalone Connect is not configured for this environment.", status_code=503)
         validate_marcopolo_email_identity(user_session.user)
 
         state = uuid4().hex
@@ -193,12 +193,12 @@ class AuthPlatformService:
 
         if not user_session.authenticated or user_session.user is None:
             raise AuthPlatformError(
-                "Set a Test User in the demo before continuing the MarcoPolo Connect sign-in.",
+                "Create a demo app session before continuing WorkOS Standalone Connect authorization.",
                 status_code=401,
             )
 
         if not self._settings.workos_connect_configured:
-            raise AuthPlatformError("WorkOS Connect is not configured for this environment.", status_code=503)
+            raise AuthPlatformError("WorkOS Standalone Connect is not configured for this environment.", status_code=503)
         validate_marcopolo_email_identity(user_session.user)
 
         user = user_session.user
@@ -230,34 +230,34 @@ class AuthPlatformService:
 
         if response.status_code >= 400:
             raise AuthPlatformError(
-                f"WorkOS Connect completion failed with {response.status_code}: {response.text}",
+                f"WorkOS Standalone Connect completion failed with {response.status_code}: {response.text}",
                 status_code=502,
             )
 
         body = response.json()
         redirect_uri = body.get("redirect_uri")
         if not isinstance(redirect_uri, str) or not redirect_uri:
-            raise AuthPlatformError("WorkOS Connect completion did not return redirect_uri.", status_code=502)
+            raise AuthPlatformError("WorkOS Standalone Connect completion did not return redirect_uri.", status_code=502)
 
         return RedirectResponse(url=redirect_uri, status_code=302)
 
     async def complete_workos_connect(self, request: Request) -> RedirectResponse:
         if not self._settings.workos_connect_configured:
-            raise AuthPlatformError("WorkOS Connect is not configured for this environment.", status_code=503)
+            raise AuthPlatformError("WorkOS Standalone Connect is not configured for this environment.", status_code=503)
 
         error = request.query_params.get("error")
         if error:
             description = request.query_params.get("error_description") or error
-            raise AuthPlatformError(f"WorkOS Connect authorization failed: {description}", status_code=400)
+            raise AuthPlatformError(f"WorkOS Standalone Connect authorization failed: {description}", status_code=400)
 
         returned_state = request.query_params.get("state")
         expected_state = request.session.pop(_WORKOS_CONNECT_STATE_SESSION_KEY, None)
         if not expected_state or returned_state != expected_state:
-            raise AuthPlatformError("WorkOS Connect state validation failed.", status_code=400)
+            raise AuthPlatformError("WorkOS Standalone Connect state validation failed.", status_code=400)
 
         code = request.query_params.get("code")
         if not code:
-            raise AuthPlatformError("WorkOS Connect callback did not include an authorization code.", status_code=400)
+            raise AuthPlatformError("WorkOS Standalone Connect callback did not include an authorization code.", status_code=400)
 
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
@@ -277,7 +277,7 @@ class AuthPlatformService:
 
         if response.status_code >= 400:
             raise AuthPlatformError(
-                f"WorkOS Connect token exchange failed with {response.status_code}: {response.text}",
+                f"WorkOS Standalone Connect token exchange failed with {response.status_code}: {response.text}",
                 status_code=502,
             )
 
@@ -285,31 +285,31 @@ class AuthPlatformService:
             body = response.json()
         except ValueError as exc:
             raise AuthPlatformError(
-                "WorkOS Connect token response was not valid JSON.",
+                "WorkOS Standalone Connect token response was not valid JSON.",
                 status_code=502,
             ) from exc
         if not isinstance(body, dict):
             raise AuthPlatformError(
-                "WorkOS Connect token response must be a JSON object.",
+                "WorkOS Standalone Connect token response must be a JSON object.",
                 status_code=502,
             )
 
         access_token = body.get("access_token")
         if not isinstance(access_token, str) or not access_token.strip():
-            raise AuthPlatformError("WorkOS Connect token response did not include access_token.", status_code=502)
+            raise AuthPlatformError("WorkOS Standalone Connect token response did not include access_token.", status_code=502)
         access_token = access_token.strip()
 
         auth_payload = get_auth_session_store().get_for_request(request)
         if not isinstance(auth_payload, dict) or "user" not in auth_payload:
             raise AuthPlatformError(
-                "The Integration Demo session is missing after the WorkOS Connect callback.",
+                "The Integration Demo session is missing after the WorkOS Standalone Connect callback.",
                 status_code=401,
             )
 
         refresh_token = body.get("refresh_token")
         if refresh_token is not None and not isinstance(refresh_token, str):
             raise AuthPlatformError(
-                "WorkOS Connect token response returned an invalid refresh_token.",
+                "WorkOS Standalone Connect token response returned an invalid refresh_token.",
                 status_code=502,
             )
 

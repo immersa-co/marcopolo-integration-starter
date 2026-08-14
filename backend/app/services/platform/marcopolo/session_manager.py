@@ -75,13 +75,13 @@ class MarcoPoloSessionManager:
     async def _workos_connect_session(self, user_session: UserSession) -> MarcoPoloSession:
         if not user_session.marcopolo_provisioned:
             raise MarcoPoloSessionManagerError(
-                "MarcoPolo bootstrap is required for WorkOS Connect mode.",
+                "MarcoPolo bootstrap is required for WorkOS Standalone Connect mode.",
                 status_code=401,
             )
         token = (user_session.marcopolo_access_token or "").strip()
         if not token:
             raise MarcoPoloSessionManagerError(
-                "MarcoPolo authorization is required for WorkOS Connect mode. Start /api/auth/marcopolo/authorize first.",
+                "MarcoPolo authorization is required for WorkOS Standalone Connect mode. Start /api/auth/marcopolo/authorize first.",
                 status_code=401,
             )
         if self._workos_connect_token_expired(user_session):
@@ -114,7 +114,7 @@ class MarcoPoloSessionManager:
                 )
         except httpx.HTTPError as exc:
             raise MarcoPoloSessionManagerError(
-                f"WorkOS Connect token refresh failed: {_describe_exception(exc)}",
+                f"WorkOS Standalone Connect token refresh failed: {_describe_exception(exc)}",
                 status_code=502,
             ) from exc
 
@@ -130,7 +130,7 @@ class MarcoPoloSessionManager:
         if not isinstance(access_token, str) or not access_token.strip():
             self._clear_workos_connect_session(user_session)
             raise MarcoPoloSessionManagerError(
-                "WorkOS Connect refresh response did not include a usable access token.",
+                "WorkOS Standalone Connect refresh response did not include a usable access token.",
                 status_code=502,
             )
 

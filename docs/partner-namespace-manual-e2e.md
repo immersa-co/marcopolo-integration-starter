@@ -1,7 +1,7 @@
 # Partner Namespace Manual E2E
 
-This is the manual validation path for the Entelligence partner namespace. It uses WorkOS Connect as the only
-partner authentication path.
+This is the manual validation path for the Entelligence partner namespace. The partner application authenticates
+the user first; WorkOS Standalone Connect then authorizes MarcoPolo access.
 
 ## Setup
 
@@ -13,9 +13,9 @@ partner authentication path.
 ## Authentication
 
 1. Open `http://localhost:5173`.
-2. Select `WorkOS Connect (partner E2E)`.
-3. Enter the partner application's authenticated user as the Test User.
-4. Complete the Entelligence WorkOS Connect flow.
+2. Select `WorkOS Standalone Connect (recommended)`.
+3. Create a demo app session for a user the partner application has already authenticated.
+4. Complete the Entelligence WorkOS Standalone Connect flow.
 
 The backend exchanges the authorization code, then calls:
 
@@ -38,7 +38,7 @@ The session strip must clearly show:
 The same values must be present in `GET http://localhost:8001/api/auth/session` as `namespace` and `company`, with
 `marcoPoloProvisioned: true`.
 
-After that, refresh the Connections tab and exercise the SDK and Chatbot examples. They must use the WorkOS Connect
+After that, refresh the Connections tab and exercise the SDK and Chatbot examples. They must use the WorkOS Standalone Connect
 session. A Marcopolo developer token is only a local shortcut and is not valid evidence for this partner E2E.
 
 ## Failure checks

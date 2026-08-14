@@ -37,15 +37,15 @@ async def auth_session(
     )
 
 
-@router.post("/impersonate", response_model=AuthSessionResponse)
-async def impersonate_user(
+@router.post("/demo-session", response_model=AuthSessionResponse)
+async def create_demo_session(
     request: Request,
     email: str = Body(..., embed=True),
     auth_service: AuthPlatformService = Depends(get_auth_service),
     settings: Settings = Depends(get_settings),
 ) -> AuthSessionResponse:
     try:
-        auth_service.impersonate_user(request, email)
+        auth_service.create_demo_session(request, email)
     except AuthPlatformError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 

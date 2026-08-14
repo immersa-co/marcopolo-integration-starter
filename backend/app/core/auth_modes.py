@@ -28,11 +28,11 @@ class MarcoPoloAuthModeDefinition:
 MARCOPOLO_AUTH_MODES: dict[str, MarcoPoloAuthModeDefinition] = {
     "workos_connect": MarcoPoloAuthModeDefinition(
         key="workos_connect",
-        label="WorkOS Connect (partner E2E)",
+        label="WorkOS Standalone Connect (recommended)",
         description=(
-            "Recommended partner E2E path: authenticate the Test User through the "
-            "Entelligence WorkOS Connect app, bootstrap MarcoPolo, and use its "
-            "issuer-resolved namespace and company."
+            "Recommended partner flow: start with a user authenticated by your application, "
+            "complete WorkOS Standalone Connect, then use MarcoPolo's issuer-resolved "
+            "namespace and company."
         ),
         required_env_vars=(
             "WORKOS_CONNECT_AUTH_URL",
@@ -48,7 +48,7 @@ MARCOPOLO_AUTH_MODES: dict[str, MarcoPoloAuthModeDefinition] = {
         label="Developer API Token (local shortcut)",
         description=(
             "Local-only shortcut for an already provisioned MarcoPolo workspace. "
-            "This is not the partner namespace E2E authentication path."
+            "This is not the partner integration authorization path."
         ),
         required_env_vars=("MARCOPOLO_DEVELOPER_API_TOKEN",),
         implemented=True,

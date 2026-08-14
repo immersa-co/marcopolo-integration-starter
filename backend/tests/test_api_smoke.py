@@ -65,20 +65,21 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(examples_response.status_code, 200)
         self.assertEqual(len(examples_response.json()["examples"]), 3)
 
-    def test_impersonate_route_creates_demo_session(self) -> None:
-        response = self.client.post("/api/auth/impersonate", json={"email": "demo.user@example.com"})
+    def test_demo_session_route_creates_demo_session(self) -> None:
+        response = self.client.post("/api/auth/demo-session", json={"email": "demo.user@example.com"})
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertTrue(payload["authenticated"])
-        self.assertEqual(payload["provider"], "impersonation")
+        self.assertEqual(payload["provider"], "demo_session")
         self.assertEqual(payload["user"]["email"], "demo.user@example.com")
+        self.assertEqual(payload["user"]["subject"], "demo_session:demo.user@example.com")
         self.assertFalse(payload["marcoPoloProvisioned"])
         self.assertIsNone(payload["company"])
         self.assertIsNone(payload["namespace"])
 
         session_payload = self.client.get("/api/auth/session").json()
         self.assertTrue(session_payload["authenticated"])
-        self.assertEqual(session_payload["provider"], "impersonation")
+        self.assertEqual(session_payload["provider"], "demo_session")
         self.assertEqual(session_payload["user"]["email"], "demo.user@example.com")
         self.assertIsNone(session_payload["company"])
         self.assertIsNone(session_payload["namespace"])
@@ -89,6 +90,10 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertFalse(logout_payload["marcoPoloProvisioned"])
         self.assertIsNone(logout_payload["company"])
         self.assertIsNone(logout_payload["namespace"])
+
+    def test_legacy_impersonate_route_is_not_exposed(self) -> None:
+        response = self.client.post("/api/auth/impersonate", json={"email": "demo.user@example.com"})
+        self.assertEqual(response.status_code, 404)
 
     def test_protected_routes_require_authentication(self) -> None:
         connections = self.client.get("/api/connections")
@@ -315,9 +320,9 @@ class ApiSmokeTests(unittest.TestCase):
 
     def test_validate_marcopolo_email_identity_accepts_email(self) -> None:
         user = UserProfile(
-            provider="impersonation",
+            provider="demo_session",
             providerSubject="developer@example.com",
-            subject="impersonation:developer@example.com",
+            subject="demo_session:developer@example.com",
             email="developer@example.com",
             name="Developer",
             issuer="marcopolo-integration-starter",
@@ -328,9 +333,9 @@ class ApiSmokeTests(unittest.TestCase):
 
     def test_validate_marcopolo_email_identity_rejects_missing_email(self) -> None:
         user = UserProfile(
-            provider="impersonation",
+            provider="demo_session",
             providerSubject="no-email",
-            subject="impersonation:no-email",
+            subject="demo_session:no-email",
             email=None,
             name="Developer",
             issuer="marcopolo-integration-starter",

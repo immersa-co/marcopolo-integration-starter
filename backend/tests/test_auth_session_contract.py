@@ -78,9 +78,9 @@ class AuthSessionContractTests(unittest.IsolatedAsyncioTestCase):
     def test_workos_token_without_successful_bootstrap_is_unprovisioned(self) -> None:
         payload = _normalized_auth_payload_for_mode(
             {
-                "provider": "impersonation",
+                "provider": "demo_session",
                 "user": {
-                    "subject": "impersonation:partner@example.com",
+                    "subject": "demo_session:partner@example.com",
                     "email": "partner@example.com",
                 },
                 "marcopolo_access_token": "workos-access-token",
@@ -106,7 +106,7 @@ class AuthSessionContractTests(unittest.IsolatedAsyncioTestCase):
             workos_connect_redirect_uri="http://localhost:8001/api/auth/workos/callback",
             marcopolo_web_base_url="http://localhost:8000",
         )
-        AuthPlatformService(settings).impersonate_user(request, "partner@example.com")
+        AuthPlatformService(settings).create_demo_session(request, "partner@example.com")
         request.session["workos_connect_state"] = "state"
         requests: list[dict[str, object]] = []
         responses = [
@@ -170,7 +170,7 @@ class AuthSessionContractTests(unittest.IsolatedAsyncioTestCase):
             workos_connect_redirect_uri="http://localhost:8001/api/auth/workos/callback",
             marcopolo_web_base_url="http://localhost:8000",
         )
-        AuthPlatformService(settings).impersonate_user(request, "partner@example.com")
+        AuthPlatformService(settings).create_demo_session(request, "partner@example.com")
         request.session["workos_connect_state"] = "state"
         requests: list[dict[str, object]] = []
         responses = [

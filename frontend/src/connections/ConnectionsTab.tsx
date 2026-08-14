@@ -186,7 +186,7 @@ export default function ConnectionsTab({
           {needsMarcoPoloAuthorization ? (
             <div className="placeholder-row emphasis">
               <span>Connection status</span>
-              <span className="pill pending">Completing MarcoPolo Connect sign-in</span>
+              <span className="pill pending">Completing WorkOS Standalone Connect authorization</span>
             </div>
           ) : null}
           {!needsMarcoPoloAuthorization && !marcoPoloReady && !connectionsError ? (

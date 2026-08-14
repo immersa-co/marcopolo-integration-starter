@@ -78,7 +78,7 @@ export default function useChatRuntime({
       ? `Ask about any available connection, for example ${availableChatConnectionNames.join(', ')}.`
       : 'Ask about any available MarcoPolo connection.'
     : needsMarcoPoloAuthorization
-      ? 'Completing MarcoPolo Connect sign-in.'
+      ? 'Completing WorkOS Standalone Connect authorization.'
       : 'Sign in to enable chat.'
 
   const selectedToolItem =

@@ -4,7 +4,7 @@ This guide is the recommended onboarding path for `marcopolo-integration-starter
 
 ## What This Demo Shows
 
-- how to authenticate a partner demo user through WorkOS Connect and Marcopolo bootstrap
+- how to authorize MarcoPolo access with WorkOS Standalone Connect after the partner app authenticates its user
 - how the session exposes Marcopolo's issuer-resolved namespace and company
 - how to list and configure MarcoPolo connections from a custom web app
 - how to use `marcopolo-sdk` for traditional product integrations
@@ -34,20 +34,20 @@ This guide is the recommended onboarding path for `marcopolo-integration-starter
    npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173
    ```
 
-6. Open `http://localhost:5173` and choose `WorkOS Connect (partner E2E)`.
-7. Enter the partner user's email in `Test User`, then complete WorkOS Connect.
+6. Open `http://localhost:5173` and choose `WorkOS Standalone Connect (recommended)`.
+7. Create a demo app session for the partner user, then complete WorkOS Standalone Connect.
 8. Confirm the session strip shows the authoritative values:
 
    - `namespace: entelligence`
    - `company: entelligence-demo`
 
-The Test User is only the demo harness for the partner application's authenticated user. The backend exchanges the
+The demo app session represents a user the partner application has already authenticated. The backend exchanges the
 WorkOS code, calls Marcopolo `POST /api/auth/bootstrap` with the access and refresh tokens, validates the response,
 and stores the returned namespace and company. A failed bootstrap leaves the session unprovisioned.
 
 ### 2. List Available Connections
 
-After the WorkOS Connect bootstrap succeeds, open the `Connections` tab and click `Refresh`. The backend uses the
+After the WorkOS Standalone Connect bootstrap succeeds, open the `Connections` tab and click `Refresh`. The backend uses the
 WorkOS access token associated with the bootstrapped session and the UI renders the visible namespace connections.
 
 ### 3. Create the Salesforce Demo Connection
