@@ -32,18 +32,20 @@ async def auth_session(
         marco_polo_auth_mode=selected_mode,
         marco_polo_configured=is_auth_mode_configured(settings, selected_mode),
         marco_polo_provisioned=user_session.marcopolo_provisioned,
+        company=user_session.company,
+        namespace=user_session.namespace,
     )
 
 
-@router.post("/impersonate", response_model=AuthSessionResponse)
-async def impersonate_user(
+@router.post("/demo-session", response_model=AuthSessionResponse)
+async def create_demo_session(
     request: Request,
     email: str = Body(..., embed=True),
     auth_service: AuthPlatformService = Depends(get_auth_service),
     settings: Settings = Depends(get_settings),
 ) -> AuthSessionResponse:
     try:
-        auth_service.impersonate_user(request, email)
+        auth_service.create_demo_session(request, email)
     except AuthPlatformError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
@@ -57,6 +59,8 @@ async def impersonate_user(
         marco_polo_auth_mode=selected_mode,
         marco_polo_configured=is_auth_mode_configured(settings, selected_mode),
         marco_polo_provisioned=refreshed_session.marcopolo_provisioned,
+        company=refreshed_session.company,
+        namespace=refreshed_session.namespace,
     )
 
 
@@ -89,6 +93,8 @@ async def select_marcopolo_auth_mode(
         marco_polo_auth_mode=selected_mode,
         marco_polo_configured=is_auth_mode_configured(settings, selected_mode),
         marco_polo_provisioned=refreshed_session.marcopolo_provisioned,
+        company=refreshed_session.company,
+        namespace=refreshed_session.namespace,
     )
 
 
@@ -157,6 +163,8 @@ async def logout(
         marco_polo_auth_mode=selected_mode,
         marco_polo_configured=is_auth_mode_configured(settings, selected_mode),
         marco_polo_provisioned=False,
+        company=None,
+        namespace=None,
     )
 
 
@@ -169,6 +177,8 @@ def _build_auth_session_response(
     marco_polo_auth_mode: str,
     marco_polo_configured: bool,
     marco_polo_provisioned: bool,
+    company: str | None,
+    namespace: str | None,
 ) -> AuthSessionResponse:
     auth_mode_definition = get_auth_mode_definition(marco_polo_auth_mode)
     return AuthSessionResponse(
@@ -183,4 +193,6 @@ def _build_auth_session_response(
         marco_polo_auth_mode_configured=marco_polo_configured,
         marco_polo_configured=marco_polo_configured,
         marco_polo_provisioned=marco_polo_provisioned,
+        company=company,
+        namespace=namespace,
     )

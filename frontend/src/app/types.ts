@@ -22,6 +22,8 @@ export type AuthSession = {
   marcoPoloAuthModeConfigured: boolean
   marcoPoloConfigured: boolean
   marcoPoloProvisioned: boolean
+  company: string | null
+  namespace: string | null
 }
 
 export type RuntimeSkill = {

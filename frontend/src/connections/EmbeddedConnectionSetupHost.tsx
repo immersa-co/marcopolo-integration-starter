@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge'
 
 type EmbeddedConnectionSetupResponse = {
@@ -45,6 +45,16 @@ type Props = {
   onRefreshConnections: () => Promise<void>
 }
 
+type EmbeddedBridgeRuntime = {
+  currentPayload: EmbeddedConnectionSetupResponse
+  isOAuthFlow: boolean
+  activeSetupSessionId: string | null
+  hostReturnUrl: string
+  oemOrigin: string
+  hostSessionId: string
+  resolveSetupSessionFromHostSession: () => void
+}
+
 function getTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
@@ -86,6 +96,14 @@ export default function EmbeddedConnectionSetupHost({
   onRefreshConnections,
 }: Props) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const bridgeRef = useRef<AppBridge | null>(null)
+  const bridgeInitializedRef = useRef(false)
+  const iframeStartedRef = useRef(false)
+  const closeRequestedRef = useRef(false)
+  const hydrationSequenceRef = useRef(0)
+  const hydratingPayloadRef = useRef<EmbeddedConnectionSetupResponse | null>(null)
+  const hydratedPayloadRef = useRef<EmbeddedConnectionSetupResponse | null>(null)
+  const bridgeRuntimeRef = useRef<EmbeddedBridgeRuntime | null>(null)
   const popupWindowsRef = useRef<Window[]>([])
   const oauthPollIdRef = useRef(0)
   const hostSessionIdRef = useRef(
@@ -112,16 +130,16 @@ export default function EmbeddedConnectionSetupHost({
       ? currentPayload.toolOutput.host_session_id
       : hostSessionIdRef.current
 
-  function registerPopupWindow(popupWindow: Window | null) {
+  const registerPopupWindow = useCallback((popupWindow: Window | null) => {
     if (!popupWindow) {
       return
     }
     popupWindowsRef.current = popupWindowsRef.current
       .filter((candidate) => candidate && !candidate.closed)
       .concat(popupWindow)
-  }
+  }, [])
 
-  function closeAllPopupWindows() {
+  const closeAllPopupWindows = useCallback(() => {
     for (const popupWindow of popupWindowsRef.current) {
       try {
         if (popupWindow && !popupWindow.closed) {
@@ -132,7 +150,7 @@ export default function EmbeddedConnectionSetupHost({
       }
     }
     popupWindowsRef.current = []
-  }
+  }, [])
 
   useEffect(() => {
     setCurrentPayload(payload)
@@ -245,6 +263,16 @@ export default function EmbeddedConnectionSetupHost({
     }
   }
 
+  bridgeRuntimeRef.current = {
+    currentPayload,
+    isOAuthFlow,
+    activeSetupSessionId,
+    hostReturnUrl,
+    oemOrigin,
+    hostSessionId,
+    resolveSetupSessionFromHostSession,
+  }
+
   useEffect(() => {
     if (!activeSetupSessionId || !isOAuthFlow || oauthReadyName) {
       return
@@ -294,149 +322,273 @@ export default function EmbeddedConnectionSetupHost({
     }
   }, [isOAuthFlow, marcoPoloOrigin, oemOrigin])
 
+  const hydrateBridge = useCallback(async (bridge: AppBridge) => {
+    const runtime = bridgeRuntimeRef.current
+    if (!runtime || closeRequestedRef.current) {
+      return
+    }
+
+    const payloadToHydrate = runtime.currentPayload
+    if (
+      hydratedPayloadRef.current === payloadToHydrate ||
+      hydratingPayloadRef.current === payloadToHydrate
+    ) {
+      return
+    }
+
+    const hydrationSequence = hydrationSequenceRef.current + 1
+    hydrationSequenceRef.current = hydrationSequence
+    hydratingPayloadRef.current = payloadToHydrate
+    setStatusText('Hydrating the MarcoPolo embedded app...')
+
+    try {
+      await bridge.sendToolInput({
+        arguments: {
+          ...buildToolInput(payloadToHydrate),
+          ...(runtime.isOAuthFlow
+            ? {
+                host_mode: 'embedded',
+                host_return_url: runtime.hostReturnUrl,
+                host_origin: runtime.oemOrigin,
+                host_session_id: runtime.hostSessionId,
+              }
+            : {}),
+        },
+      })
+      if (
+        hydrationSequenceRef.current !== hydrationSequence ||
+        bridgeRef.current !== bridge ||
+        closeRequestedRef.current
+      ) {
+        return
+      }
+
+      await bridge.sendToolResult(payloadToHydrate.toolResult as never)
+      if (
+        hydrationSequenceRef.current === hydrationSequence &&
+        bridgeRef.current === bridge &&
+        !closeRequestedRef.current
+      ) {
+        hydratedPayloadRef.current = payloadToHydrate
+        setStatusText('MarcoPolo embedded app loaded inside MarcoPolo Integration Demo.')
+      }
+    } catch (error) {
+      if (bridgeRef.current === bridge && !closeRequestedRef.current) {
+        setHostError(error instanceof Error ? error.message : String(error))
+      }
+    } finally {
+      if (hydratingPayloadRef.current === payloadToHydrate) {
+        hydratingPayloadRef.current = null
+      }
+    }
+  }, [])
+
+  const disposeBridge = useCallback(async () => {
+    closeRequestedRef.current = true
+    hydrationSequenceRef.current += 1
+    hydratingPayloadRef.current = null
+    closeAllPopupWindows()
+
+    const bridge = bridgeRef.current
+    if (!bridge) {
+      iframeStartedRef.current = false
+      hydratedPayloadRef.current = null
+      bridgeInitializedRef.current = false
+      return
+    }
+
+    bridgeRef.current = null
+    iframeStartedRef.current = false
+    hydratedPayloadRef.current = null
+    bridgeInitializedRef.current = false
+    try {
+      await bridge.teardownResource({}, { timeout: 1500 })
+    } catch {
+      // Teardown is best effort because the frame may already be navigating away.
+    }
+    try {
+      await bridge.close()
+    } catch {
+      // Closing an already-detached frame is also best effort.
+    }
+  }, [closeAllPopupWindows])
+
+  const closeActionStartedRef = useRef(false)
+  const handleClose = useCallback(async () => {
+    if (closeActionStartedRef.current) {
+      return
+    }
+    closeActionStartedRef.current = true
+    await disposeBridge()
+    onClose()
+  }, [disposeBridge, onClose])
+
   useEffect(() => {
     if (unresolvedType) {
       return
     }
     const iframe = iframeRef.current
-    if (!iframe) {
+    if (!iframe || bridgeRef.current) {
+      return
+    }
+    const targetWindow = iframe.contentWindow
+    if (!targetWindow) {
       return
     }
 
-    let closed = false
-    let bridge: AppBridge | null = null
+    closeRequestedRef.current = false
+    bridgeInitializedRef.current = false
+    setStatusText('Connecting MarcoPolo Integration Demo to the MarcoPolo embedded app...')
 
-    iframe.src = `${apiBaseUrl}/api/connections/ext-app/connection-setup?resourceUri=${encodeURIComponent(
+    const iframeSrc = `${apiBaseUrl}/api/connections/ext-app/connection-setup?resourceUri=${encodeURIComponent(
       currentPayload.resourceUri,
     )}`
-
-    const handleLoad = () => {
-      const targetWindow = iframe.contentWindow
-      if (!targetWindow || closed) {
-        return
-      }
-
-      setStatusText('Connecting MarcoPolo Integration Demo to the MarcoPolo embedded app...')
-
-      const transport = new PostMessageTransport(targetWindow, targetWindow)
-      bridge = new AppBridge(
-        null,
-        { name: 'MarcoPoloOEMDemo', version: '0.2.0' },
-        {
-          openLinks: {},
-          message: { text: {} },
-          logging: {},
-        },
-        {
-          hostContext: {
-            theme: getTheme(),
-            displayMode: 'inline',
-            platform: 'web',
-            userAgent: 'MarcoPoloOEMDemo',
-            locale: navigator.language,
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            containerDimensions: {
-              maxWidth: 1200,
-              maxHeight: 1600,
-            },
+    const transport = new PostMessageTransport(targetWindow, targetWindow)
+    const bridge = new AppBridge(
+      null,
+      { name: 'MarcoPoloOEMDemo', version: '0.2.0' },
+      {
+        openLinks: {},
+        message: { text: {} },
+        logging: {},
+      },
+      {
+        hostContext: {
+          theme: getTheme(),
+          displayMode: 'inline',
+          platform: 'web',
+          userAgent: 'MarcoPoloOEMDemo',
+          locale: navigator.language,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          containerDimensions: {
+            maxWidth: 1200,
+            maxHeight: 1600,
           },
         },
-      )
+      },
+    )
+    bridgeRef.current = bridge
 
-      bridge.onopenlink = async ({ url }) => {
-        if (isOAuthFlow) {
-          const isResumedPopupStep = Boolean(activeSetupSessionId)
-          closeAllPopupWindows()
-          const popupWindow = window.open(
-            url,
-            'marcopolo-embedded-oauth',
-            'popup=yes,width=1280,height=900,resizable=yes,scrollbars=yes',
-          )
-          if (!popupWindow) {
-            setOauthPending(false)
-            setHostError('MarcoPolo Integration Demo could not open the authorization popup. Allow popups for this site and retry.')
-            return {}
-          }
-          registerPopupWindow(popupWindow)
-          setOauthPending(true)
-          setStatusText(
-            isResumedPopupStep
-              ? 'Google Picker is running in a separate window. Stay on the MarcoPolo Integration Demo page while the host waits for completion.'
-              : 'Authorization is running in a separate window. Stay on the MarcoPolo Integration Demo page while the host waits for MarcoPolo to return control.',
-          )
-          if (!isResumedPopupStep) {
-            void resolveSetupSessionFromHostSession()
-          }
-        } else {
-          window.open(url, '_blank', 'noopener,noreferrer')
-        }
+    bridge.onopenlink = async ({ url }) => {
+      const runtime = bridgeRuntimeRef.current
+      if (!runtime || bridgeRef.current !== bridge || closeRequestedRef.current) {
         return {}
       }
-
-      bridge.onmessage = async ({ content }) => {
-        const text = getMessageText(content)
-        if (text && !closed) {
-          setStatusText(text)
+      if (runtime.isOAuthFlow) {
+        const isResumedPopupStep = Boolean(runtime.activeSetupSessionId)
+        closeAllPopupWindows()
+        const popupWindow = window.open(
+          url,
+          'marcopolo-embedded-oauth',
+          'popup=yes,width=1280,height=900,resizable=yes,scrollbars=yes',
+        )
+        if (!popupWindow) {
+          setOauthPending(false)
+          setHostError('MarcoPolo Integration Demo could not open the authorization popup. Allow popups for this site and retry.')
+          return {}
         }
-        return {}
-      }
-
-      bridge.onsizechange = ({ height }) => {
-        if (typeof height === 'number' && Number.isFinite(height) && !closed) {
-          const nextHeight = Math.max(520, Math.min(Math.ceil(height) + 8, 1600))
-          // Keep the iframe height monotonic for the current session so transient
-          // overlays like Google Picker do not trigger a resize feedback loop.
-          setIframeHeight((currentHeight) => Math.max(currentHeight, nextHeight))
+        registerPopupWindow(popupWindow)
+        setOauthPending(true)
+        setStatusText(
+          isResumedPopupStep
+            ? 'Google Picker is running in a separate window. Stay on the MarcoPolo Integration Demo page while the host waits for completion.'
+            : 'Authorization is running in a separate window. Stay on the MarcoPolo Integration Demo page while the host waits for MarcoPolo to return control.',
+        )
+        if (!isResumedPopupStep) {
+          void runtime.resolveSetupSessionFromHostSession()
         }
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer')
       }
-
-      bridge.oninitialized = () => {
-        void (async () => {
-          try {
-            setStatusText('Hydrating the MarcoPolo embedded app...')
-            await bridge?.sendToolInput({
-              arguments: {
-                ...buildToolInput(currentPayload),
-                ...(isOAuthFlow
-                  ? {
-                      host_mode: 'embedded',
-                      host_return_url: hostReturnUrl,
-                      host_origin: oemOrigin,
-                      host_session_id: hostSessionId,
-                    }
-                  : {}),
-              },
-            })
-            await bridge?.sendToolResult(currentPayload.toolResult as never)
-            if (!closed) {
-              setStatusText('MarcoPolo embedded app loaded inside MarcoPolo Integration Demo.')
-            }
-          } catch (error) {
-            if (!closed) {
-              setHostError((error as Error).message)
-            }
-          }
-        })()
-      }
-
-      void bridge.connect(transport).catch((error: unknown) => {
-        if (!closed) {
-          setHostError((error as Error).message)
-        }
-      })
+      return {}
     }
 
-    iframe.addEventListener('load', handleLoad)
+    bridge.onmessage = async ({ content }) => {
+      const text = getMessageText(content)
+      if (text && bridgeRef.current === bridge && !closeRequestedRef.current) {
+        setStatusText(text)
+      }
+      return {}
+    }
 
+    bridge.onsizechange = ({ height }) => {
+      if (
+        typeof height === 'number' &&
+        Number.isFinite(height) &&
+        bridgeRef.current === bridge &&
+        !closeRequestedRef.current
+      ) {
+        const nextHeight = Math.max(520, Math.min(Math.ceil(height) + 8, 1600))
+        // Keep the iframe height monotonic for the current session so transient
+        // overlays like Google Picker do not trigger a resize feedback loop.
+        setIframeHeight((currentHeight) => Math.max(currentHeight, nextHeight))
+      }
+    }
+
+    bridge.oninitialized = () => {
+      if (bridgeRef.current !== bridge || closeRequestedRef.current) {
+        return
+      }
+      bridgeInitializedRef.current = true
+      void hydrateBridge(bridge)
+    }
+
+    // The bridge must listen before navigation: the embedded app sends its
+    // one-shot initialize notification as soon as this document boots.
+    void bridge
+      .connect(transport)
+      .then(() => {
+        if (bridgeRef.current !== bridge || closeRequestedRef.current || iframeStartedRef.current) {
+          return
+        }
+        iframeStartedRef.current = true
+        iframe.src = iframeSrc
+      })
+      .catch((error: unknown) => {
+        if (bridgeRef.current !== bridge || closeRequestedRef.current) {
+          return
+        }
+        bridgeRef.current = null
+        bridgeInitializedRef.current = false
+        void bridge.close().catch(() => {})
+        setHostError(error instanceof Error ? error.message : String(error))
+      })
+  }, [apiBaseUrl, closeAllPopupWindows, currentPayload.resourceUri, hydrateBridge, registerPopupWindow, unresolvedType])
+
+  useEffect(() => {
+    const bridge = bridgeRef.current
+    if (!bridgeInitializedRef.current || !bridge || closeRequestedRef.current) {
+      return
+    }
+    void hydrateBridge(bridge)
+  }, [activeSetupSessionId, currentPayload, hostReturnUrl, hostSessionId, hydrateBridge, isOAuthFlow])
+
+  useEffect(() => {
+    if (!oauthReadyName) {
+      return
+    }
+    void disposeBridge()
+  }, [disposeBridge, oauthReadyName])
+
+  useEffect(() => {
+    const iframe = iframeRef.current
     return () => {
-      closed = true
+      // React StrictMode replays effects while the DOM node is still mounted.
+      // Only close the bridge here when the frame was genuinely removed.
+      if (iframe?.isConnected) {
+        return
+      }
       closeAllPopupWindows()
-      iframe.removeEventListener('load', handleLoad)
+      closeRequestedRef.current = true
+      hydrationSequenceRef.current += 1
+      const bridge = bridgeRef.current
+      bridgeRef.current = null
+      bridgeInitializedRef.current = false
       if (bridge) {
         void bridge.close().catch(() => {})
       }
     }
-  }, [apiBaseUrl, currentPayload, hostReturnUrl, hostSessionId, isOAuthFlow, oemOrigin, unresolvedType])
+  }, [closeAllPopupWindows])
 
   return (
     <section className="embedded-host-card">
@@ -449,7 +601,7 @@ export default function EmbeddedConnectionSetupHost({
           <button type="button" className="secondary-button" onClick={onRefreshConnections}>
             Refresh connections
           </button>
-          <button type="button" className="secondary-button" onClick={onClose}>
+          <button type="button" className="secondary-button" onClick={() => void handleClose()}>
             Close
           </button>
         </div>
@@ -501,7 +653,6 @@ export default function EmbeddedConnectionSetupHost({
           ref={iframeRef}
           title="MarcoPolo connection setup"
           className="embedded-host-frame"
-          src="about:blank"
           style={{ height: `${iframeHeight}px` }}
         />
       ) : null}

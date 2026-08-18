@@ -6,15 +6,15 @@ Use this smoke test after frontend or backend changes to confirm the app still w
 
 - Backend is running on `http://localhost:8001`
 - Frontend is running on `http://localhost:5173`
-- The environment is configured so WorkOS Connect can complete successfully
+- The environment is configured so WorkOS Standalone Connect can complete successfully
 
 ## Smoke Test Steps
 
 1. Relaunch the frontend app if needed.
 2. Open Chrome to `http://localhost:5173`.
-3. In the auth mode selector, choose `WorkOS Connect Token`.
+3. In the auth mode selector, choose `WorkOS Standalone Connect (recommended)`.
 4. In the email field, enter `sameer@immersa.co`.
-5. Click `Test User`.
+5. Click `Create demo app session`.
 6. Click the `Chatbot` tab.
 7. In the chat composer, enter `List top 5 customers by revenue from Salesforce`.
 8. Wait for the LangGraph agent to finish.

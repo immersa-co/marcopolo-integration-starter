@@ -7,13 +7,13 @@ type AuthGateScreenProps = {
   selectableMarcoPoloModes: MarcoPoloAuthModeOption[]
   selectedMarcoPoloAuthMode: string
   modeSelectionBusy: boolean
-  impersonateBusy: boolean
-  impersonateEmail: string
+  demoSessionBusy: boolean
+  demoUserEmail: string
   sessionError: string | null
   configError: string | null
   onMarcoPoloAuthModeChange: (mode: string) => void
-  onImpersonateEmailChange: (email: string) => void
-  onImpersonateSubmit: FormEventHandler<HTMLFormElement>
+  onDemoUserEmailChange: (email: string) => void
+  onDemoSessionSubmit: FormEventHandler<HTMLFormElement>
 }
 
 export default function AuthGateScreen({
@@ -21,13 +21,13 @@ export default function AuthGateScreen({
   selectableMarcoPoloModes,
   selectedMarcoPoloAuthMode,
   modeSelectionBusy,
-  impersonateBusy,
-  impersonateEmail,
+  demoSessionBusy,
+  demoUserEmail,
   sessionError,
   configError,
   onMarcoPoloAuthModeChange,
-  onImpersonateEmailChange,
-  onImpersonateSubmit,
+  onDemoUserEmailChange,
+  onDemoSessionSubmit,
 }: AuthGateScreenProps) {
   return (
     <main className="auth-page">
@@ -35,7 +35,8 @@ export default function AuthGateScreen({
         <div className="auth-header">
           <p className="auth-brand">MarcoPolo Integration Demo</p>
           <p className="auth-copy">
-            Enter any email address and the demo will establish MarcoPolo access using the selected integration mode.
+            This starter assumes your application already authenticated the user. Enter a demo user email to simulate
+            that app session, then WorkOS Standalone Connect authorizes MarcoPolo access and resolves the user's namespace.
           </p>
         </div>
         {config ? (
@@ -50,7 +51,7 @@ export default function AuthGateScreen({
                     value={mode.key}
                     checked={selectedMarcoPoloAuthMode === mode.key}
                     onChange={() => onMarcoPoloAuthModeChange(mode.key)}
-                    disabled={modeSelectionBusy || impersonateBusy}
+                    disabled={modeSelectionBusy || demoSessionBusy}
                   />
                   <span>
                     <strong>{mode.label}</strong>
@@ -62,21 +63,21 @@ export default function AuthGateScreen({
             <p className="status-inline">{config.marcoPolo.authModeDescription}</p>
           </div>
         ) : null}
-        <form className="auth-actions" onSubmit={onImpersonateSubmit}>
+        <form className="auth-actions" onSubmit={onDemoSessionSubmit}>
           <label className="auth-field">
-            <span>Email</span>
+            <span>Demo user email</span>
             <input
               type="email"
               name="email"
               placeholder="user@company.com"
               autoComplete="email"
-              value={impersonateEmail}
-              onChange={(event) => onImpersonateEmailChange(event.target.value)}
-              disabled={impersonateBusy}
+              value={demoUserEmail}
+              onChange={(event) => onDemoUserEmailChange(event.target.value)}
+              disabled={demoSessionBusy}
             />
           </label>
-          <button type="submit" className="primary-button auth-submit" disabled={impersonateBusy}>
-            {impersonateBusy ? 'Loading Test User…' : 'Test User'}
+          <button type="submit" className="primary-button auth-submit" disabled={demoSessionBusy}>
+            {demoSessionBusy ? 'Creating demo app session…' : 'Create demo app session'}
           </button>
         </form>
         {sessionError || configError ? (

@@ -50,7 +50,7 @@ Contains:
 - `.env` settings
 - endpoint configuration
 - Developer API token settings
-- WorkOS Connect settings
+- WorkOS Standalone Connect settings
 - dependency injection and request session resolution
 
 ### Authentication session logic
@@ -60,9 +60,10 @@ Contains:
 
 Contains:
 
-- Test User session creation
+- demo app-session creation
 - selected auth mode persistence
-- WorkOS Connect redirect and callback handling
+- WorkOS Standalone Connect redirect and callback handling
+- Marcopolo `/api/auth/bootstrap` exchange and authoritative company/namespace session state
 - Connect refresh handling
 
 ### MarcoPolo integration layer

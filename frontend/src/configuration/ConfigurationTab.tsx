@@ -56,7 +56,7 @@ export default function ConfigurationTab({ config, configError, marcoPoloReady }
               </dl>
               <div className="pill-row">
                 <span className={config.auth.configured ? 'pill ready' : 'pill pending'}>
-                  {config.auth.configured ? 'Impersonation ready' : 'Session config missing'}
+                  {config.auth.configured ? 'Demo app session ready' : 'Session config missing'}
                 </span>
                 <span className={config.marcoPolo.authModeConfigured ? 'pill ready' : 'pill pending'}>
                   {config.marcoPolo.authModeConfigured

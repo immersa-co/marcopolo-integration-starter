@@ -1,13 +1,13 @@
-# WorkOS Connect Standalone In This Demo
+# WorkOS Standalone Connect In This Starter
 
-This document explains, step by step, how the Integration Demo uses **WorkOS Connect Standalone** to mint a MarcoPolo-compatible access token for the selected demo user.
+This document explains, step by step, how the Integration Demo uses **WorkOS Standalone Connect** to obtain a WorkOS access token for a user already authenticated by the partner application. The backend forwards that token to MarcoPolo.
 
 This is not the same as using WorkOS as the demo app's primary login system.
 
 The demo does two separate things:
 
-1. It creates a local demo session for a "Test User" by impersonating an email address.
-2. It uses WorkOS Connect Standalone to generate an OAuth access token for that already-selected user.
+1. It creates a local demo app session that represents an already-authenticated partner user.
+2. It uses WorkOS Standalone Connect to obtain an OAuth access token for that user.
 
 That second token is what the backend later uses when calling MarcoPolo.
 
@@ -17,20 +17,20 @@ WorkOS Standalone Connect is designed for apps that already have their own authe
 
 Reference: [WorkOS Standalone Connect](https://workos.com/docs/authkit/connect/standalone)
 
-That pattern maps well to this demo because we already have a local demo session model based on a Test User email. We treat that demo session as the "existing authentication system" that WorkOS Standalone needs. The result is: WorkOS issues a token for the impersonated demo user, and the backend stores that token as the current user's MarcoPolo access token.
+That pattern maps well to this demo because its local app session stands in for the partner application's existing authentication system. The result is: WorkOS issues a token for the demo user represented by that session, and the backend stores that token as the current user's MarcoPolo access token.
 
 ## What This Demo Is Doing
 
 In this repository:
 
-- the frontend lets the reviewer select `WorkOS Connect Token`
-- the reviewer enters a Test User email
-- the backend creates a local session for that email
+- the frontend lets the reviewer select `WorkOS Standalone Connect (recommended)`
+- the reviewer enters a demo user email
+- the backend creates a demo app session for that email
 - the frontend detects that the user is authenticated locally but does not yet have a MarcoPolo token
 - the frontend redirects to `/api/auth/marcopolo/authorize`
-- the backend starts the WorkOS Connect authorization flow
+- the backend starts the WorkOS Standalone Connect authorization flow
 - WorkOS sends the browser to this app's Login URI with `external_auth_id`
-- the backend completes the WorkOS Standalone handshake for the already-impersonated user
+- the backend completes the WorkOS Standalone handshake for the user represented by the demo app session
 - WorkOS sends the browser back through the OAuth authorization flow
 - the backend exchanges the returned code for tokens
 - the access token is saved into the demo session and used for later MarcoPolo API and MCP calls
@@ -91,7 +91,7 @@ Important note:
 - instead, WorkOS uses the Login URI already configured for the Standalone Connect application
 - `WORKOS_CONNECT_LOGIN_URI` is therefore documentation and environment coordination for the demo, while the active route implementation is `backend/app/api/auth.py -> /workos/login`
 
-The `workos_connect` auth mode is defined in `backend/app/core/auth_modes.py`. Its description is intentionally explicit: this mode exists to mint a MarcoPolo-compatible access token for the selected demo user.
+The `workos_connect` auth mode is defined in `backend/app/core/auth_modes.py`. Its description is intentionally explicit: this mode authorizes MarcoPolo access for a user the partner application already authenticated.
 
 ## End-To-End Flow
 
@@ -123,7 +123,7 @@ The crucial boolean is `needsMarcoPoloAuthorization`:
 
 That boolean is what triggers the WorkOS redirect.
 
-### Step 2: The reviewer selects `WorkOS Connect Token`
+### Step 2: The reviewer selects `WorkOS Standalone Connect (recommended)`
 
 The mode picker lives in `frontend/src/auth/AuthGateScreen.tsx`.
 
@@ -152,21 +152,21 @@ Important behavior:
 
 ### Step 3: The reviewer creates the local demo session
 
-The "Test User" form posts to:
+The demo app-session form posts to:
 
-- `POST /api/auth/impersonate`
+- `POST /api/auth/demo-session`
 
 That route calls:
 
-- `AuthPlatformService.impersonate_user(...)`
+- `AuthPlatformService.create_demo_session(...)`
 
 This method:
 
 - lowercases and validates the email
 - creates a local `UserProfile`
 - sets:
-  - `provider = "impersonation"`
-  - `subject = "impersonation:<email>"`
+  - `provider = "demo_session"`
+  - `subject = "demo_session:<email>"`
   - `email = <entered email>`
 - writes an auth payload to the session store
 - records the currently selected MarcoPolo auth mode
@@ -192,7 +192,7 @@ When all of those line up, it redirects the browser to:
 
 - `/api/auth/marcopolo/authorize?returnTo=<frontend-url>`
 
-This is the entrypoint that starts WorkOS Connect.
+This is the entrypoint that starts WorkOS Standalone Connect.
 
 ### Step 5: The backend starts the OAuth authorization flow
 
@@ -221,7 +221,7 @@ It includes:
 - `scope`
 - `state`
 
-This is the standard OAuth entrypoint into WorkOS Connect.
+This is the standard OAuth entrypoint into WorkOS Standalone Connect.
 
 ### Step 6: WorkOS redirects to the Login URI with `external_auth_id`
 
@@ -243,7 +243,7 @@ It does the following:
 
 1. Validates that `external_auth_id` is present.
 2. Validates that the demo already has a locally authenticated user.
-3. Reads the impersonated `UserSession`.
+3. Reads the demo `UserSession`.
 4. Builds a stable external user id:
    - `uid_<normalized-email>`
 5. Builds the completion payload:
@@ -259,7 +259,7 @@ It does the following:
 
 This matches the Standalone Connect contract: the app tells WorkOS which already-authenticated user corresponds to `external_auth_id`, and WorkOS returns a redirect back into the OAuth flow.
 
-The important design point is that the impersonated Test User becomes the user identity that WorkOS Connect issues the token for.
+The important design point is that the demo app session represents the existing user identity for which WorkOS issues the token.
 
 ### Step 8: WorkOS redirects back with an authorization code
 
@@ -357,7 +357,7 @@ If you want to implement the same pattern in your own app, the minimal sequence 
 
 1. Authenticate the user in your own app.
 2. Keep enough local session state to know who the current user is.
-3. Start WorkOS Connect authorization and store an OAuth `state`.
+3. Start WorkOS Standalone Connect authorization and store an OAuth `state`.
 4. Configure a Login URI that can receive `external_auth_id`.
 5. When WorkOS calls that Login URI:
    - resolve the current locally authenticated user
@@ -375,12 +375,12 @@ If you want to implement the same pattern in your own app, the minimal sequence 
 
 ## Why This Works Well For The Demo
 
-This repository intentionally avoids implementing a real login system. The impersonated Test User is enough to simulate the "existing authentication system" required by Standalone Connect.
+This repository intentionally avoids implementing a real login system. The demo app session is enough to simulate the existing partner authentication required by Standalone Connect.
 
 That gives us a simple mental model:
 
-- local demo auth chooses **which user**
-- WorkOS Connect mints **that user's OAuth token**
+- the partner app session identifies **which user is already authenticated**
+- WorkOS Standalone Connect issues **that user's OAuth token**
 - MarcoPolo services consume **that token**
 
 That separation is the main idea new integrators should copy.

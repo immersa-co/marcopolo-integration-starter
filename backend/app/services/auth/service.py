@@ -37,6 +37,16 @@ class UserSession:
     marcopolo_id_token: str | None = None
     marcopolo_token_type: str | None = None
     marcopolo_expires_at: float | None = None
+    company: str | None = None
+    namespace: str | None = None
+
+
+@dataclass(frozen=True)
+class MarcoPoloBootstrap:
+    redirect_url: str
+    company: str
+    namespace: str
+
 
 def user_session_from_auth_payload(
     auth_payload: dict[str, Any] | None,
@@ -60,6 +70,8 @@ def user_session_from_auth_payload(
         marcopolo_id_token=auth_payload.get("marcopolo_id_token"),
         marcopolo_token_type=auth_payload.get("marcopolo_token_type"),
         marcopolo_expires_at=_coerce_float(auth_payload.get("marcopolo_expires_at")),
+        company=auth_payload.get("company"),
+        namespace=auth_payload.get("namespace"),
     )
 
 
@@ -118,23 +130,23 @@ class AuthPlatformService:
             )
         return mode
 
-    def impersonate_user(self, request: Request, email: str) -> UserSession:
+    def create_demo_session(self, request: Request, email: str) -> UserSession:
         normalized_email = email.strip().lower()
         if not _EMAIL_PATTERN.match(normalized_email):
-            raise AuthPlatformError("Enter a valid Test User email address.", status_code=422)
+            raise AuthPlatformError("Enter a valid demo user email address.", status_code=422)
 
         selected_mode = self.selected_marcopolo_auth_mode(request)
         user = UserProfile(
-            provider="impersonation",
+            provider="demo_session",
             provider_subject=normalized_email,
-            subject=f"impersonation:{normalized_email}",
+            subject=f"demo_session:{normalized_email}",
             email=normalized_email,
             name=normalized_email,
             issuer="marcopolo-integration-starter",
             email_verified=True,
         )
         auth_payload = {
-            "provider": "impersonation",
+            "provider": "demo_session",
             "user": user.model_dump(mode="json"),
             "issuer": user.issuer,
             "marcopolo_auth_mode": selected_mode,
@@ -159,7 +171,7 @@ class AuthPlatformService:
         if selected_mode != "workos_connect":
             raise AuthPlatformError("MarcoPolo auth mode is not set to workos_connect.", status_code=409)
         if not self._settings.workos_connect_configured:
-            raise AuthPlatformError("WorkOS Connect is not configured for this environment.", status_code=503)
+            raise AuthPlatformError("WorkOS Standalone Connect is not configured for this environment.", status_code=503)
         validate_marcopolo_email_identity(user_session.user)
 
         state = uuid4().hex
@@ -181,12 +193,12 @@ class AuthPlatformService:
 
         if not user_session.authenticated or user_session.user is None:
             raise AuthPlatformError(
-                "Set a Test User in the demo before continuing the MarcoPolo Connect sign-in.",
+                "Create a demo app session before continuing WorkOS Standalone Connect authorization.",
                 status_code=401,
             )
 
         if not self._settings.workos_connect_configured:
-            raise AuthPlatformError("WorkOS Connect is not configured for this environment.", status_code=503)
+            raise AuthPlatformError("WorkOS Standalone Connect is not configured for this environment.", status_code=503)
         validate_marcopolo_email_identity(user_session.user)
 
         user = user_session.user
@@ -218,34 +230,34 @@ class AuthPlatformService:
 
         if response.status_code >= 400:
             raise AuthPlatformError(
-                f"WorkOS Connect completion failed with {response.status_code}: {response.text}",
+                f"WorkOS Standalone Connect completion failed with {response.status_code}: {response.text}",
                 status_code=502,
             )
 
         body = response.json()
         redirect_uri = body.get("redirect_uri")
         if not isinstance(redirect_uri, str) or not redirect_uri:
-            raise AuthPlatformError("WorkOS Connect completion did not return redirect_uri.", status_code=502)
+            raise AuthPlatformError("WorkOS Standalone Connect completion did not return redirect_uri.", status_code=502)
 
         return RedirectResponse(url=redirect_uri, status_code=302)
 
     async def complete_workos_connect(self, request: Request) -> RedirectResponse:
         if not self._settings.workos_connect_configured:
-            raise AuthPlatformError("WorkOS Connect is not configured for this environment.", status_code=503)
+            raise AuthPlatformError("WorkOS Standalone Connect is not configured for this environment.", status_code=503)
 
         error = request.query_params.get("error")
         if error:
             description = request.query_params.get("error_description") or error
-            raise AuthPlatformError(f"WorkOS Connect authorization failed: {description}", status_code=400)
+            raise AuthPlatformError(f"WorkOS Standalone Connect authorization failed: {description}", status_code=400)
 
         returned_state = request.query_params.get("state")
         expected_state = request.session.pop(_WORKOS_CONNECT_STATE_SESSION_KEY, None)
         if not expected_state or returned_state != expected_state:
-            raise AuthPlatformError("WorkOS Connect state validation failed.", status_code=400)
+            raise AuthPlatformError("WorkOS Standalone Connect state validation failed.", status_code=400)
 
         code = request.query_params.get("code")
         if not code:
-            raise AuthPlatformError("WorkOS Connect callback did not include an authorization code.", status_code=400)
+            raise AuthPlatformError("WorkOS Standalone Connect callback did not include an authorization code.", status_code=400)
 
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
@@ -265,29 +277,58 @@ class AuthPlatformService:
 
         if response.status_code >= 400:
             raise AuthPlatformError(
-                f"WorkOS Connect token exchange failed with {response.status_code}: {response.text}",
+                f"WorkOS Standalone Connect token exchange failed with {response.status_code}: {response.text}",
                 status_code=502,
             )
 
-        body = response.json()
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise AuthPlatformError(
+                "WorkOS Standalone Connect token response was not valid JSON.",
+                status_code=502,
+            ) from exc
+        if not isinstance(body, dict):
+            raise AuthPlatformError(
+                "WorkOS Standalone Connect token response must be a JSON object.",
+                status_code=502,
+            )
+
         access_token = body.get("access_token")
-        if not isinstance(access_token, str) or not access_token:
-            raise AuthPlatformError("WorkOS Connect token response did not include access_token.", status_code=502)
+        if not isinstance(access_token, str) or not access_token.strip():
+            raise AuthPlatformError("WorkOS Standalone Connect token response did not include access_token.", status_code=502)
+        access_token = access_token.strip()
 
         auth_payload = get_auth_session_store().get_for_request(request)
         if not isinstance(auth_payload, dict) or "user" not in auth_payload:
             raise AuthPlatformError(
-                "The Integration Demo session is missing after the WorkOS Connect callback.",
+                "The Integration Demo session is missing after the WorkOS Standalone Connect callback.",
                 status_code=401,
             )
 
+        refresh_token = body.get("refresh_token")
+        if refresh_token is not None and not isinstance(refresh_token, str):
+            raise AuthPlatformError(
+                "WorkOS Standalone Connect token response returned an invalid refresh_token.",
+                status_code=502,
+            )
+
+        _clear_marcopolo_auth_state(auth_payload)
+        get_auth_session_store().upsert_for_request(request, auth_payload)
+        bootstrap = await self._bootstrap_marcopolo(
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
+
         auth_payload["marcopolo_access_token"] = access_token
-        auth_payload["marcopolo_refresh_token"] = body.get("refresh_token")
+        auth_payload["marcopolo_refresh_token"] = refresh_token
         auth_payload["marcopolo_id_token"] = body.get("id_token")
         auth_payload["marcopolo_token_type"] = body.get("token_type")
         auth_payload["marcopolo_expires_at"] = _compute_expires_at(body.get("expires_in"))
         auth_payload["marcopolo_auth_mode"] = "workos_connect"
         auth_payload["marcopolo_provisioned"] = True
+        auth_payload["company"] = bootstrap.company
+        auth_payload["namespace"] = bootstrap.namespace
         get_auth_session_store().upsert_for_request(request, auth_payload)
 
         redirect_to = request.session.pop(
@@ -295,6 +336,36 @@ class AuthPlatformService:
             self._default_return_url(with_auth_success=True),
         )
         return RedirectResponse(url=redirect_to, status_code=302)
+
+    async def _bootstrap_marcopolo(
+        self,
+        *,
+        access_token: str,
+        refresh_token: str | None,
+    ) -> MarcoPoloBootstrap:
+        payload: dict[str, str] = {"access_token": access_token}
+        if refresh_token:
+            payload["refresh_token"] = refresh_token
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    f"{self._settings.marcopolo_web_base_url.rstrip('/')}/api/auth/bootstrap",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+        except httpx.HTTPError as exc:
+            detail = str(exc).strip() or exc.__class__.__name__
+            raise AuthPlatformError(
+                f"MarcoPolo bootstrap request failed: {detail}",
+                status_code=502,
+            ) from exc
+
+        return _parse_marcopolo_bootstrap_response(response)
 
     def clear_session(self, request: Request) -> None:
         selected_mode = self.selected_marcopolo_auth_mode(request)
@@ -350,15 +421,87 @@ def _normalized_auth_payload_for_mode(auth_payload: dict[str, Any], mode: str) -
     normalized = dict(auth_payload)
     normalized["marcopolo_auth_mode"] = mode
     if mode != "workos_connect":
-        normalized["marcopolo_access_token"] = None
-        normalized["marcopolo_refresh_token"] = None
-        normalized["marcopolo_id_token"] = None
-        normalized["marcopolo_token_type"] = None
-        normalized["marcopolo_expires_at"] = None
-        normalized["marcopolo_provisioned"] = False
-    else:
-        normalized["marcopolo_provisioned"] = bool(normalized.get("marcopolo_access_token"))
+        _clear_marcopolo_auth_state(normalized)
+    elif not (
+        normalized.get("marcopolo_provisioned") is True
+        and isinstance(normalized.get("marcopolo_access_token"), str)
+        and normalized["marcopolo_access_token"].strip()
+        and isinstance(normalized.get("company"), str)
+        and normalized["company"].strip()
+        and isinstance(normalized.get("namespace"), str)
+        and normalized["namespace"].strip()
+    ):
+        _clear_marcopolo_auth_state(normalized)
     return normalized
+
+
+def _clear_marcopolo_auth_state(auth_payload: dict[str, Any]) -> None:
+    auth_payload["marcopolo_access_token"] = None
+    auth_payload["marcopolo_refresh_token"] = None
+    auth_payload["marcopolo_id_token"] = None
+    auth_payload["marcopolo_token_type"] = None
+    auth_payload["marcopolo_expires_at"] = None
+    auth_payload["marcopolo_provisioned"] = False
+    auth_payload["company"] = None
+    auth_payload["namespace"] = None
+
+
+def _parse_marcopolo_bootstrap_response(response: httpx.Response) -> MarcoPoloBootstrap:
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise AuthPlatformError(
+            f"MarcoPolo bootstrap returned invalid JSON ({response.status_code}).",
+            status_code=502,
+        ) from exc
+
+    if response.status_code >= 400:
+        detail = _bootstrap_response_detail(payload, response)
+        raise AuthPlatformError(
+            f"MarcoPolo bootstrap failed with {response.status_code}: {detail}",
+            status_code=502,
+        )
+
+    if not isinstance(payload, dict) or payload.get("success") is not True:
+        detail = _bootstrap_response_detail(payload, response)
+        raise AuthPlatformError(
+            f"MarcoPolo bootstrap response was unsuccessful: {detail}",
+            status_code=502,
+        )
+
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise AuthPlatformError(
+            "MarcoPolo bootstrap response did not include a data object.",
+            status_code=502,
+        )
+
+    values = {field: data.get(field) for field in ("redirect_url", "company", "namespace")}
+    missing_fields = [
+        field for field, value in values.items() if not isinstance(value, str) or not value.strip()
+    ]
+    if missing_fields:
+        raise AuthPlatformError(
+            "MarcoPolo bootstrap response is missing required data: "
+            + ", ".join(missing_fields),
+            status_code=502,
+        )
+
+    return MarcoPoloBootstrap(
+        redirect_url=values["redirect_url"].strip(),
+        company=values["company"].strip(),
+        namespace=values["namespace"].strip(),
+    )
+
+
+def _bootstrap_response_detail(payload: Any, response: httpx.Response) -> str:
+    if isinstance(payload, dict):
+        for key in ("error", "detail", "message"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()[:300]
+    text = response.text.strip()
+    return text[:300] or "empty response"
 
 
 def _compute_expires_at(expires_in: Any) -> float | None:

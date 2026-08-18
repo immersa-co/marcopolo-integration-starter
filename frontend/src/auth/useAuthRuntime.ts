@@ -14,9 +14,9 @@ type UseAuthRuntimeResult = {
   configError: string | null
   sessionError: string | null
   modeSelectionBusy: boolean
-  impersonateBusy: boolean
-  impersonateEmail: string
-  setImpersonateEmail: (value: string) => void
+  demoSessionBusy: boolean
+  demoUserEmail: string
+  setDemoUserEmail: (value: string) => void
   selectableMarcoPoloModes: MarcoPoloAuthModeOption[]
   selectedMarcoPoloAuthMode: string
   usesWorkosConnect: boolean
@@ -24,7 +24,7 @@ type UseAuthRuntimeResult = {
   shouldGateApp: boolean
   handleLogout: () => Promise<void>
   handleMarcoPoloAuthModeChange: (mode: string) => Promise<void>
-  handleImpersonateSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>
+  handleDemoSessionSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>
 }
 
 export default function useAuthRuntime({
@@ -37,11 +37,11 @@ export default function useAuthRuntime({
   const [configError, setConfigError] = useState<string | null>(null)
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [modeSelectionBusy, setModeSelectionBusy] = useState(false)
-  const [impersonateBusy, setImpersonateBusy] = useState(false)
-  const [impersonateEmail, setImpersonateEmail] = useState('')
+  const [demoSessionBusy, setDemoSessionBusy] = useState(false)
+  const [demoUserEmail, setDemoUserEmail] = useState('')
   const connectRedirectAttemptRef = useRef<string | null>(null)
 
-  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'developer_api_token'
+  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'workos_connect'
   const usesWorkosConnect = selectedMarcoPoloAuthMode === 'workos_connect'
   const selectableMarcoPoloModes =
     config?.marcoPolo.availableAuthModes.filter((mode) => ['developer_api_token', 'workos_connect'].includes(mode.key)) ?? []
@@ -137,7 +137,7 @@ export default function useAuthRuntime({
 
       onMarcoPoloReadyChange(false)
       onResetAppState()
-      setImpersonateEmail('')
+      setDemoUserEmail('')
       setSession((await response.json()) as AuthSession)
       await loadRuntime()
     } catch (error) {
@@ -185,21 +185,21 @@ export default function useAuthRuntime({
     }
   }
 
-  async function handleImpersonateSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleDemoSessionSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const email = impersonateEmail.trim()
+    const email = demoUserEmail.trim()
     if (!email) {
-      setSessionError('Enter a test user email address.')
+      setSessionError('Enter a demo user email address.')
       return
     }
 
     try {
-      setImpersonateBusy(true)
+      setDemoSessionBusy(true)
       setSessionError(null)
       onResetAppState()
       onMarcoPoloReadyChange(false)
 
-      const response = await fetch(`${apiBaseUrl}/api/auth/impersonate`, {
+      const response = await fetch(`${apiBaseUrl}/api/auth/demo-session`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -216,7 +216,7 @@ export default function useAuthRuntime({
         } catch {
           detail = ''
         }
-        throw new Error(detail || `Impersonation failed with ${response.status}`)
+        throw new Error(detail || `Demo session creation failed with ${response.status}`)
       }
 
       setSession((await response.json()) as AuthSession)
@@ -224,7 +224,7 @@ export default function useAuthRuntime({
     } catch (error) {
       setSessionError((error as Error).message)
     } finally {
-      setImpersonateBusy(false)
+      setDemoSessionBusy(false)
     }
   }
 
@@ -234,9 +234,9 @@ export default function useAuthRuntime({
     configError,
     sessionError,
     modeSelectionBusy,
-    impersonateBusy,
-    impersonateEmail,
-    setImpersonateEmail,
+    demoSessionBusy,
+    demoUserEmail,
+    setDemoUserEmail,
     selectableMarcoPoloModes,
     selectedMarcoPoloAuthMode,
     usesWorkosConnect,
@@ -244,6 +244,6 @@ export default function useAuthRuntime({
     shouldGateApp,
     handleLogout,
     handleMarcoPoloAuthModeChange,
-    handleImpersonateSubmit,
+    handleDemoSessionSubmit,
   }
 }

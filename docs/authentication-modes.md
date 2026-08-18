@@ -1,66 +1,52 @@
 # Authentication Modes
 
-The demo currently supports two MarcoPolo authentication modes.
+The recommended partner path is WorkOS Standalone Connect. The demo app-session form represents a user the partner
+application has already authenticated; it is not a login system or a replacement for the partner's authentication.
 
-## 1. Developer API Token
-
-Use this first.
-
-What it is:
-
-- a Developer API token created from the MarcoPolo web app
-- tied to an already provisioned MarcoPolo workspace
-
-Why it exists:
-
-- simplest path to validate integration
-- easiest way to configure connections in a known workspace
-- easiest way to verify SDK and Chatbot behavior
-
-How the demo uses it:
-
-1. the user selects `Developer API Token`
-2. the user enters a Test User email
-3. the backend ignores upstream identity for token minting
-4. the backend uses `MARCOPOLO_DEVELOPER_API_TOKEN` directly for MarcoPolo calls
-
-Important detail:
-
-- for clarity during development, use the same email in the Test User field as the email that owns the MarcoPolo workspace behind the token
-
-Required `.env` value:
-
-- `MARCOPOLO_DEVELOPER_API_TOKEN`
-
-## 2. WorkOS Connect Token
-
-Use this after the Developer API token path is working.
+## 1. WorkOS Standalone Connect (recommended)
 
 What it is:
 
-- a WorkOS Standalone Connect-based flow that yields a MarcoPolo-compatible bearer token
+- a WorkOS Standalone Connect flow that yields a user bearer token from the partner's AuthKit environment
 
 Why it exists:
 
-- lets the demo test user-specific MarcoPolo access paths
-- avoids using a single personal Developer API token for all users
+- lets Marcopolo verify the partner issuer and resolve the correct namespace and company
+- avoids using a personal Marcopolo Developer API token for partner users
 
 How the demo uses it:
 
-1. the user selects `WorkOS Connect Token`
-2. the user enters a Test User email
-3. the backend starts the Connect authorization flow
-4. WorkOS returns tokens the backend stores in the session
-5. the backend uses that access token for MarcoPolo API and MCP calls
+1. the user selects `WorkOS Standalone Connect (recommended)`
+2. the user creates a demo app session for a user the partner application has already authenticated
+3. the backend starts WorkOS Standalone Connect authorization
+4. after the authorization code exchange, the backend calls `POST http://localhost:8000/api/auth/bootstrap`
+   with the WorkOS access token and refresh token
+5. the backend accepts the flow only when bootstrap returns `success: true` and
+   `data.redirect_url`, `data.company`, and `data.namespace`
+6. the session stores the authoritative `company` and `namespace` returned by Marcopolo
+7. MarcoPolo API and MCP calls use the WorkOS access token; they do not fall back to a developer token
+
+The starter never derives `company` from the demo user email, parses unverified JWT claims, or sends a namespace
+chosen by the starter. Marcopolo resolves the namespace from the verified WorkOS issuer.
 
 Required `.env` values:
 
-- `WORKOS_API_KEY`
 - `WORKOS_CONNECT_AUTH_URL`
 - `WORKOS_CONNECT_CLIENT_ID`
 - `WORKOS_CONNECT_CLIENT_SECRET`
 - `WORKOS_CONNECT_REDIRECT_URI`
-- `WORKOS_CONNECT_LOGIN_URI`
+
+For the local Entelligence E2E, `.env.example` supplies the documented AuthKit domain and client ID. Secret values
+remain empty and must be filled locally.
+
+## 2. Developer API Token (local shortcut only)
+
+This mode is retained for quickly inspecting an already provisioned local workspace. It is not a partner integration
+and must not be used to validate namespace resolution or the Entelligence E2E flow.
+
+Required `.env` value:
+
+- `MARCOPOLO_DEVELOPER_API_TOKEN`
 
 ## Deliberate Demo Simplification
 
@@ -68,7 +54,7 @@ This repository does **not** implement a real customer login system.
 
 Instead:
 
-- the app uses a Test User email field
+- the app uses a demo app-session email field
 - the backend session is local and in-memory
 - the purpose is to make MarcoPolo integration seams easy to inspect
 
