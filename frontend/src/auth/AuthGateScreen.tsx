@@ -36,7 +36,7 @@ export default function AuthGateScreen({
           <p className="auth-brand">MarcoPolo Integration Demo</p>
           <p className="auth-copy">
             This starter assumes your application already authenticated the user. Enter a demo user email to simulate
-            that app session, then WorkOS Standalone Connect authorizes MarcoPolo access and resolves the user's namespace.
+            that app session, then the backend exchanges its MarcoPolo namespace key for a short-lived user token and resolves the user's namespace.
           </p>
         </div>
         {config ? (

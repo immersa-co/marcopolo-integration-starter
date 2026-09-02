@@ -115,38 +115,6 @@ async def authorize_marcopolo_connect(
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
 
-# WorkOS Standalone Connect redirects here after AuthKit determines that the
-# application must authenticate the user in its own system. WorkOS provides
-# `external_auth_id`, and this handler binds that external flow to the current
-# demo session before handing control back to AuthKit.
-@router.get("/workos/login")
-async def workos_connect_login(
-    request: Request,
-    external_auth_id: str | None = Query(default=None, alias="external_auth_id"),
-    user_session: UserSession = Depends(get_current_session),
-    auth_service: AuthPlatformService = Depends(get_auth_service),
-) -> RedirectResponse:
-    try:
-        return await auth_service.handle_workos_connect_login(
-            request,
-            user_session,
-            external_auth_id=external_auth_id,
-        )
-    except AuthPlatformError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-
-
-@router.get("/workos/callback")
-async def workos_connect_callback(
-    request: Request,
-    auth_service: AuthPlatformService = Depends(get_auth_service),
-) -> RedirectResponse:
-    try:
-        return await auth_service.complete_workos_connect(request)
-    except AuthPlatformError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-
-
 @router.post("/logout", response_model=AuthSessionResponse)
 async def logout(
     request: Request,

@@ -134,6 +134,63 @@ class WorkspaceShellResponse(BaseModel):
     execution_time: float | None = Field(alias="executionTime", default=None)
 
 
+class OAuthConnectionTypeOption(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: str
+    display_name: str = Field(alias="displayName")
+    category: str | None = None
+
+
+class OAuthConnectionTypesResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    connection_types: list[OAuthConnectionTypeOption] = Field(alias="connectionTypes")
+
+
+class OAuthSetupStartRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    connection_type: str = Field(alias="connectionType")
+    display_name: str = Field(alias="displayName")
+    client_session_id: str | None = Field(alias="clientSessionId", default=None)
+
+
+class OAuthSetupStartResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    setup_session_id: str = Field(alias="setupSessionId")
+    status: str
+    connection_type: str = Field(alias="connectionType")
+    connection_name: str = Field(alias="connectionName")
+    display_name: str = Field(alias="displayName")
+    authorization_url: str = Field(alias="authorizationUrl")
+    return_url: str | None = Field(alias="returnUrl", default=None)
+    expires_at: str = Field(alias="expiresAt")
+
+
+class OAuthSetupSessionResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    setup_session_id: str = Field(alias="setupSessionId")
+    status: str
+    connection_type: str = Field(alias="connectionType")
+    connection_name: str = Field(alias="connectionName")
+    display_name: str = Field(alias="displayName")
+    expires_at: str = Field(alias="expiresAt")
+    failure_code: str | None = Field(alias="failureCode", default=None)
+    failure_message: str | None = Field(alias="failureMessage", default=None)
+
+
+class ConnectionTestResultResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    connection_name: str = Field(alias="connectionName")
+    status: str
+    message: str
+    latency_ms: int = Field(alias="latencyMs")
+
+
 class ChatCreateRequest(BaseModel):
     message: str
 

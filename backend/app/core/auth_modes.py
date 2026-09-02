@@ -26,21 +26,15 @@ class MarcoPoloAuthModeDefinition:
 
 
 MARCOPOLO_AUTH_MODES: dict[str, MarcoPoloAuthModeDefinition] = {
-    "workos_connect": MarcoPoloAuthModeDefinition(
-        key="workos_connect",
-        label="WorkOS Standalone Connect (recommended)",
+    "namespace_key": MarcoPoloAuthModeDefinition(
+        key="namespace_key",
+        label="Namespace key (recommended)",
         description=(
-            "Recommended partner flow: start with a user authenticated by your application, "
-            "complete WorkOS Standalone Connect, then use MarcoPolo's issuer-resolved "
-            "namespace and company."
+            "Recommended partner flow: the demo backend holds a MarcoPolo-issued "
+            "namespace key (mpk_...) and exchanges it for a short-lived user token "
+            "for each end user your application has already authenticated."
         ),
-        required_env_vars=(
-            "WORKOS_CONNECT_AUTH_URL",
-            "WORKOS_API_KEY",
-            "WORKOS_CONNECT_CLIENT_ID",
-            "WORKOS_CONNECT_CLIENT_SECRET",
-            "WORKOS_CONNECT_REDIRECT_URI",
-        ),
+        required_env_vars=("MARCOPOLO_NAMESPACE_KEY",),
         implemented=True,
     ),
     "developer_api_token": MarcoPoloAuthModeDefinition(
@@ -65,8 +59,8 @@ def list_auth_mode_definitions() -> list[MarcoPoloAuthModeDefinition]:
 
 
 def is_auth_mode_configured(settings: Settings, mode: str) -> bool:
+    if mode == "namespace_key":
+        return settings.namespace_key_configured
     if mode == "developer_api_token":
         return bool(settings.marcopolo_developer_api_token.strip())
-    if mode == "workos_connect":
-        return settings.workos_connect_configured
     return False

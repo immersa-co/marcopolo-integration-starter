@@ -1,6 +1,7 @@
 import type { FormEventHandler } from 'react'
 
 import EmbeddedConnectionSetupHost from './EmbeddedConnectionSetupHost'
+import SdkOAuthSetupPanel from './SdkOAuthSetupPanel'
 import type { ConnectionListItem, EmbeddedConnectionSetupResponse } from '../app/types'
 
 type ConnectionsTabProps = {
@@ -109,6 +110,12 @@ export default function ConnectionsTab({
             </div>
           </form>
 
+          <SdkOAuthSetupPanel
+            apiBaseUrl={apiBaseUrl}
+            marcopoloAccessEnabled={marcopoloAccessEnabled}
+            onConnectionsRefresh={onEmbeddedSetupRefreshConnections}
+          />
+
           <form className="connector-card connector-form" onSubmit={onEmbeddedSetupSubmit}>
             <div className="connector-copy">
               <h3>Connect a Data Source</h3>
@@ -186,7 +193,7 @@ export default function ConnectionsTab({
           {needsMarcoPoloAuthorization ? (
             <div className="placeholder-row emphasis">
               <span>Connection status</span>
-              <span className="pill pending">Completing WorkOS Standalone Connect authorization</span>
+              <span className="pill pending">Completing MarcoPolo authorization</span>
             </div>
           ) : null}
           {!needsMarcoPoloAuthorization && !marcoPoloReady && !connectionsError ? (

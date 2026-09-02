@@ -12,7 +12,6 @@ type AppShellProps = {
   selectedMarcoPoloAuthMode: string
   session: AuthSession
   sessionError: string | null
-  usesWorkosConnect: boolean
   onLogout: () => void
   onMarcoPoloAuthModeChange: (mode: string) => void
   onTabChange: (tabId: TabId) => void
@@ -27,7 +26,6 @@ export default function AppShell({
   selectedMarcoPoloAuthMode,
   session,
   sessionError,
-  usesWorkosConnect,
   onLogout,
   onMarcoPoloAuthModeChange,
   onTabChange,
@@ -35,7 +33,7 @@ export default function AppShell({
   return (
     <main className="app-shell">
       <section className="hero-panel">
-        <p className="kicker">Partner integration reference · WorkOS Standalone Connect</p>
+        <p className="kicker">Partner integration reference · MarcoPolo Namespace SDK</p>
         <div className="hero-copy">
           <div>
             <h1>MarcoPolo Integration Demo</h1>
@@ -94,13 +92,13 @@ export default function AppShell({
                   <div>
                     <dt>Namespace</dt>
                     <dd>
-                      {session.namespace ?? (usesWorkosConnect ? 'Pending Standalone Connect authorization' : 'Not provided by local shortcut')}
+                      {session.namespace ?? 'Not provided by local shortcut'}
                     </dd>
                   </div>
                   <div>
                     <dt>Company</dt>
                     <dd>
-                      {session.company ?? (usesWorkosConnect ? 'Pending Standalone Connect authorization' : 'Not provided by local shortcut')}
+                      {session.company ?? 'Not provided by local shortcut'}
                     </dd>
                   </div>
                 </dl>
@@ -112,9 +110,6 @@ export default function AppShell({
               <button type="button" className="secondary-button" onClick={onLogout}>
                 Sign out
               </button>
-            ) : null}
-            {session.authenticated && usesWorkosConnect && !session.marcoPoloProvisioned && config.marcoPolo.authModeConfigured ? (
-              <p className="status-text">Completing WorkOS Standalone Connect authorization...</p>
             ) : null}
             {sessionError ? <p className="status-text">{sessionError}</p> : null}
           </div>
