@@ -34,7 +34,6 @@ function App() {
     setDemoUserEmail,
     selectableMarcoPoloModes,
     selectedMarcoPoloAuthMode,
-    usesWorkosConnect,
     needsMarcoPoloAuthorization,
     shouldGateApp,
     handleLogout,
@@ -227,7 +226,6 @@ function App() {
       selectedMarcoPoloAuthMode={selectedMarcoPoloAuthMode}
       session={session}
       sessionError={sessionError}
-      usesWorkosConnect={usesWorkosConnect}
       onLogout={() => {
         void handleLogout()
       }}

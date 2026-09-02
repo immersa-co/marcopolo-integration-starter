@@ -14,11 +14,11 @@ from ..services.auth import (
 from ..services.platform import MarcoPoloService, SkillRegistry, load_skill_registry
 
 
-def get_auth_service(settings: Settings = get_settings()) -> AuthPlatformService:
+def get_auth_service(settings: Settings = Depends(get_settings)) -> AuthPlatformService:
     return AuthPlatformService(settings)
 
 
-def get_skill_registry(settings: Settings = get_settings()) -> SkillRegistry:
+def get_skill_registry(settings: Settings = Depends(get_settings)) -> SkillRegistry:
     return load_skill_registry(settings.skill_repo_path)
 
 
@@ -52,7 +52,7 @@ def require_marcopolo_access(
     return user_session
 
 
-def get_marcopolo_service(settings: Settings = get_settings()) -> MarcoPoloService:
+def get_marcopolo_service(settings: Settings = Depends(get_settings)) -> MarcoPoloService:
     return MarcoPoloService(settings)
 
 

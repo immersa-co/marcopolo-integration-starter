@@ -15,7 +15,12 @@ from ..core.dependencies import (
 from ..models.api import (
     ConnectionListResponse,
     ConnectionSetupStatusResponse,
+    ConnectionTestResultResponse,
     DemoConnectionInstallResponse,
+    OAuthConnectionTypesResponse,
+    OAuthSetupSessionResponse,
+    OAuthSetupStartRequest,
+    OAuthSetupStartResponse,
 )
 from ..models.api import (
     EmbeddedConnectionOAuthInitiateResponse,
@@ -36,6 +41,58 @@ async def list_connections(
 ) -> ConnectionListResponse:
     try:
         return await marcopolo.list_connections(user_session)
+    except MarcoPoloServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+@router.get("/oauth-types", response_model=OAuthConnectionTypesResponse)
+async def list_oauth_connection_types(
+    user_session: UserSession = Depends(require_marcopolo_access),
+    marcopolo: MarcoPoloService = Depends(get_marcopolo_service),
+) -> OAuthConnectionTypesResponse:
+    try:
+        return await marcopolo.list_oauth_connection_types(user_session)
+    except MarcoPoloServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+@router.post("/oauth-setup", response_model=OAuthSetupStartResponse)
+async def start_oauth_setup(
+    body: OAuthSetupStartRequest,
+    user_session: UserSession = Depends(require_marcopolo_access),
+    marcopolo: MarcoPoloService = Depends(get_marcopolo_service),
+) -> OAuthSetupStartResponse:
+    try:
+        return await marcopolo.start_oauth_setup(
+            user_session,
+            connection_type=body.connection_type,
+            display_name=body.display_name,
+            client_session_id=body.client_session_id,
+        )
+    except MarcoPoloServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+@router.get("/oauth-setup/{setup_session_id}", response_model=OAuthSetupSessionResponse)
+async def get_oauth_setup(
+    setup_session_id: str,
+    user_session: UserSession = Depends(require_marcopolo_access),
+    marcopolo: MarcoPoloService = Depends(get_marcopolo_service),
+) -> OAuthSetupSessionResponse:
+    try:
+        return await marcopolo.get_oauth_setup(user_session, setup_session_id)
+    except MarcoPoloServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
+
+@router.post("/{connection_name}/test", response_model=ConnectionTestResultResponse)
+async def test_connection(
+    connection_name: str,
+    user_session: UserSession = Depends(require_marcopolo_access),
+    marcopolo: MarcoPoloService = Depends(get_marcopolo_service),
+) -> ConnectionTestResultResponse:
+    try:
+        return await marcopolo.test_connection(user_session, connection_name)
     except MarcoPoloServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 

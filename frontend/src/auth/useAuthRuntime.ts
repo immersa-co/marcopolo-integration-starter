@@ -19,7 +19,6 @@ type UseAuthRuntimeResult = {
   setDemoUserEmail: (value: string) => void
   selectableMarcoPoloModes: MarcoPoloAuthModeOption[]
   selectedMarcoPoloAuthMode: string
-  usesWorkosConnect: boolean
   needsMarcoPoloAuthorization: boolean
   shouldGateApp: boolean
   handleLogout: () => Promise<void>
@@ -41,12 +40,13 @@ export default function useAuthRuntime({
   const [demoUserEmail, setDemoUserEmail] = useState('')
   const connectRedirectAttemptRef = useRef<string | null>(null)
 
-  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'workos_connect'
-  const usesWorkosConnect = selectedMarcoPoloAuthMode === 'workos_connect'
+  const selectedMarcoPoloAuthMode = session?.marcoPoloAuthMode ?? config?.marcoPolo.authMode ?? 'namespace_key'
+  const usesNamespaceKey = selectedMarcoPoloAuthMode === 'namespace_key'
+  const usesRedirectAuthorization = usesNamespaceKey
   const selectableMarcoPoloModes =
-    config?.marcoPolo.availableAuthModes.filter((mode) => ['developer_api_token', 'workos_connect'].includes(mode.key)) ?? []
+    config?.marcoPolo.availableAuthModes.filter((mode) => ['namespace_key', 'developer_api_token'].includes(mode.key)) ?? []
   const needsMarcoPoloAuthorization = Boolean(
-    session?.authenticated && usesWorkosConnect && !session?.marcoPoloProvisioned,
+    session?.authenticated && usesRedirectAuthorization && !session?.marcoPoloProvisioned,
   )
   const shouldGateApp = Boolean(config?.auth.required && !session?.authenticated)
 
@@ -97,7 +97,7 @@ export default function useAuthRuntime({
   }, [apiBaseUrl])
 
   useEffect(() => {
-    if (!session?.authenticated || !usesWorkosConnect || !needsMarcoPoloAuthorization) {
+    if (!session?.authenticated || !usesRedirectAuthorization || !needsMarcoPoloAuthorization) {
       connectRedirectAttemptRef.current = null
       return
     }
@@ -121,7 +121,7 @@ export default function useAuthRuntime({
     session?.authenticated,
     session?.marcoPoloProvisioned,
     session?.user?.subject,
-    usesWorkosConnect,
+    usesRedirectAuthorization,
   ])
 
   async function handleLogout() {
@@ -239,7 +239,6 @@ export default function useAuthRuntime({
     setDemoUserEmail,
     selectableMarcoPoloModes,
     selectedMarcoPoloAuthMode,
-    usesWorkosConnect,
     needsMarcoPoloAuthorization,
     shouldGateApp,
     handleLogout,

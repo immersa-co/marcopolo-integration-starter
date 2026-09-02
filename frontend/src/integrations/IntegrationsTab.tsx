@@ -117,7 +117,7 @@ export default function IntegrationsTab({
           <div className="placeholder-row emphasis">
             <span>SDK access</span>
             <span className="pill pending">
-              {needsMarcoPoloAuthorization ? 'Completing WorkOS Standalone Connect authorization' : 'Sign in to run SDK examples'}
+              {needsMarcoPoloAuthorization ? 'Completing MarcoPolo authorization' : 'Sign in to run SDK examples'}
             </span>
           </div>
         ) : null}
