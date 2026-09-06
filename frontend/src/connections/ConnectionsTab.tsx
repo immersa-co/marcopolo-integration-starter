@@ -1,8 +1,9 @@
 import type { FormEventHandler } from 'react'
+import { useState } from 'react'
 
-import EmbeddedConnectionSetupHost from './EmbeddedConnectionSetupHost'
-import SdkOAuthSetupPanel from './SdkOAuthSetupPanel'
-import type { ConnectionListItem, EmbeddedConnectionSetupResponse } from '../app/types'
+import AddDataSourceDialog from './AddDataSourceDialog'
+import ManageConnectionDialog from './ManageConnectionDialog'
+import type { ConnectionListItem } from '../app/types'
 
 type ConnectionsTabProps = {
   sessionAuthenticated: boolean
@@ -10,24 +11,16 @@ type ConnectionsTabProps = {
   marcopoloAccessEnabled: boolean
   connectionsRefreshBusy: boolean
   demoInstallBusy: boolean
-  embeddedSetupBusy: boolean
   demoConnectionInput: string
-  newConnectionTypeInput: string
   connectionActionMessage: string | null
   connections: ConnectionListItem[]
   connectionsError: string | null
   marcoPoloReady: boolean
-  embeddedSetup: EmbeddedConnectionSetupResponse | null
   apiBaseUrl: string
-  marcoPoloWebBaseUrl: string
-  activeEmbeddedConnectionName?: string | null
   onConnectionsRefresh: () => void
   onDemoInstallSubmit: FormEventHandler<HTMLFormElement>
   onDemoConnectionInputChange: (value: string) => void
-  onEmbeddedSetupSubmit: FormEventHandler<HTMLFormElement>
-  onNewConnectionTypeInputChange: (value: string) => void
-  onEmbeddedSetupClose: () => void
-  onEmbeddedSetupRefreshConnections: () => Promise<void>
+  onConnectionCreated: () => Promise<void>
 }
 
 export default function ConnectionsTab({
@@ -36,25 +29,19 @@ export default function ConnectionsTab({
   marcopoloAccessEnabled,
   connectionsRefreshBusy,
   demoInstallBusy,
-  embeddedSetupBusy,
-  demoConnectionInput,
-  newConnectionTypeInput,
-  connectionActionMessage,
   connections,
   connectionsError,
   marcoPoloReady,
-  embeddedSetup,
   apiBaseUrl,
-  marcoPoloWebBaseUrl,
-  activeEmbeddedConnectionName,
+  demoConnectionInput,
+  connectionActionMessage,
   onConnectionsRefresh,
   onDemoInstallSubmit,
   onDemoConnectionInputChange,
-  onEmbeddedSetupSubmit,
-  onNewConnectionTypeInputChange,
-  onEmbeddedSetupClose,
-  onEmbeddedSetupRefreshConnections,
+  onConnectionCreated,
 }: ConnectionsTabProps) {
+  const [managedConnectionName, setManagedConnectionName] = useState<string | null>(null)
+
   return (
     <section className="workspace-grid">
       <article className="panel">
@@ -110,41 +97,11 @@ export default function ConnectionsTab({
             </div>
           </form>
 
-          <SdkOAuthSetupPanel
+          <AddDataSourceDialog
             apiBaseUrl={apiBaseUrl}
             marcopoloAccessEnabled={marcopoloAccessEnabled}
-            onConnectionsRefresh={onEmbeddedSetupRefreshConnections}
+            onConnectionsRefresh={onConnectionCreated}
           />
-
-          <form className="connector-card connector-form" onSubmit={onEmbeddedSetupSubmit}>
-            <div className="connector-copy">
-              <h3>Connect a Data Source</h3>
-              <p>Launch the embedded MarcoPolo connection setup app for any supported connector type.</p>
-            </div>
-            <label className="auth-field">
-              <span>Connection type</span>
-              <input
-                type="text"
-                value={newConnectionTypeInput}
-                onChange={(event) => onNewConnectionTypeInputChange(event.target.value)}
-                placeholder="jira, salesforce, github, postgres, snowflake, ..."
-                disabled={!marcopoloAccessEnabled || embeddedSetupBusy}
-              />
-            </label>
-            <p className="status-inline">
-              Enter any connection type supported by MarcoPolo. Review the supported connectors at{' '}
-              <code>https://mcp.marcopolo.dev/app/connections/new</code>.
-            </p>
-            <div className="connector-actions">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={!marcopoloAccessEnabled || embeddedSetupBusy}
-              >
-                {embeddedSetupBusy ? 'Loading host...' : 'Connect In App'}
-              </button>
-            </div>
-          </form>
           {connectionActionMessage ? (
             <div className="placeholder-row emphasis">
               <div>
@@ -155,16 +112,6 @@ export default function ConnectionsTab({
             </div>
           ) : null}
         </div>
-        {embeddedSetup ? (
-          <EmbeddedConnectionSetupHost
-            apiBaseUrl={apiBaseUrl}
-            marcoPoloWebBaseUrl={marcoPoloWebBaseUrl}
-            payload={embeddedSetup}
-            existingConnectionName={activeEmbeddedConnectionName ?? undefined}
-            onClose={onEmbeddedSetupClose}
-            onRefreshConnections={onEmbeddedSetupRefreshConnections}
-          />
-        ) : null}
       </article>
 
       <article className="panel">
@@ -178,10 +125,21 @@ export default function ConnectionsTab({
               <div>
                 <strong>{connection.displayName}</strong>
                 <p className="status-inline">
-                  {connection.type} · {connection.capabilities.join(', ')}
+                  {connection.type} · {connection.authMethod} · {connection.capabilities.join(', ')}
                 </p>
               </div>
-              <span className="pill ready">Available</span>
+              <div className="connection-row-actions">
+                <span className="pill ready">Available</span>
+                {connection.canManage ? (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setManagedConnectionName(connection.name)}
+                  >
+                    Manage
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
           {!connections.length && !connectionsError && marcoPoloReady ? (
@@ -210,6 +168,13 @@ export default function ConnectionsTab({
           ) : null}
         </div>
       </article>
+
+      <ManageConnectionDialog
+        apiBaseUrl={apiBaseUrl}
+        connectionName={managedConnectionName}
+        onClose={() => setManagedConnectionName(null)}
+        onConnectionsRefresh={onConnectionCreated}
+      />
     </section>
   )
 }

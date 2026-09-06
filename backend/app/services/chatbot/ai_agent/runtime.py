@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, TypedDict
 
+from langchain.agents import create_agent
+from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
+from openai import APIConnectionError
 
 from ....core.config import Settings
 from ..service import ChatRun
@@ -42,81 +46,100 @@ class IntegrationDemoAgentService:
         self._tool_registry = MarcoPoloToolRegistry(self._mcp_client)
 
     async def stream_chat(self, chat_run: ChatRun):
-        yield {"event": "status", "data": json.dumps({"message": "Starting MCP-only LangGraph agent"})}
+        try:
+            yield {"event": "status", "data": json.dumps({"message": "Starting MCP-only LangGraph agent"})}
 
-        tools = await self._tool_registry.build_langchain_tools(chat_run.user_session)
-        yield {
-            "event": "status",
-            "data": json.dumps(
-                {
-                    "message": "Loaded raw MarcoPolo MCP tools",
-                    "toolNames": [tool.name for tool in tools],
-                }
-            ),
-        }
+            tools = await self._tool_registry.build_langchain_tools(chat_run.user_session)
+            yield {
+                "event": "status",
+                "data": json.dumps(
+                    {
+                        "message": "Loaded raw MarcoPolo MCP tools",
+                        "toolNames": [tool.name for tool in tools],
+                    }
+                ),
+            }
 
-        prompt = _system_prompt(self._bootstrap_context)
-        yield {
-            "event": "debug_context",
-            "data": json.dumps(
-                {
-                    "id": "context-bootstrap",
-                    "phase": "bootstrap",
-                    "title": "Initial agent context",
-                    "systemPrompt": prompt,
-                    "bootstrapSkillNames": list(self._bootstrap_context.skill_names),
-                    "userMessage": chat_run.message,
-                    "toolNames": [tool.name for tool in tools],
-                    "messages": [{"type": "human", "content": chat_run.message}],
-                }
-            ),
-        }
-        agent = create_react_agent(
-            self._model(),
-            tools,
-            prompt=prompt,
-            name="marcopolo_mcp_chat_agent",
-        )
+            prompt = _system_prompt(self._bootstrap_context)
+            yield {
+                "event": "debug_context",
+                "data": json.dumps(
+                    {
+                        "id": "context-bootstrap",
+                        "phase": "bootstrap",
+                        "title": "Initial agent context",
+                        "systemPrompt": prompt,
+                        "bootstrapSkillNames": list(self._bootstrap_context.skill_names),
+                        "userMessage": chat_run.message,
+                        "toolNames": [tool.name for tool in tools],
+                        "messages": [{"type": "human", "content": chat_run.message}],
+                    }
+                ),
+            }
+            agent = create_agent(
+                self._model(),
+                tools,
+                system_prompt=prompt,
+                name="marcopolo_mcp_chat_agent",
+            )
 
-        yield {"event": "status", "data": json.dumps({"message": "Running agent loop"})}
-        messages: list[BaseMessage] = []
-        async for update in agent.astream(
-            {"messages": [HumanMessage(content=chat_run.message)]},
-            stream_mode="updates",
-        ):
-            for node_name, payload in update.items():
-                if not isinstance(payload, dict):
-                    continue
-                new_messages = payload.get("messages")
-                if isinstance(new_messages, list):
-                    messages.extend([message for message in new_messages if isinstance(message, BaseMessage)])
-                status = _status_from_update(node_name, payload)
-                if status:
-                    yield {"event": "status", "data": json.dumps(status)}
-                for debug_event in _debug_events_from_update(node_name, payload, prompt=prompt, all_messages=messages):
-                    yield {"event": debug_event["event"], "data": json.dumps(debug_event["data"])}
+            yield {"event": "status", "data": json.dumps({"message": "Running agent loop"})}
+            messages: list[BaseMessage] = []
+            async for update in agent.astream(
+                {"messages": [HumanMessage(content=chat_run.message)]},
+                stream_mode="updates",
+            ):
+                for node_name, payload in update.items():
+                    if not isinstance(payload, dict):
+                        continue
+                    new_messages = payload.get("messages")
+                    if isinstance(new_messages, list):
+                        messages.extend([message for message in new_messages if isinstance(message, BaseMessage)])
+                    status = _status_from_update(node_name, payload)
+                    if status:
+                        yield {"event": "status", "data": json.dumps(status)}
+                    for debug_event in _debug_events_from_update(node_name, payload, prompt=prompt, all_messages=messages):
+                        yield {"event": debug_event["event"], "data": json.dumps(debug_event["data"])}
 
-        final_text = _final_ai_text(messages)
-        table = _extract_preview_rows(messages)
-        result_kind = "table" if table else "text"
+            final_text = _final_ai_text(messages)
+            table = _extract_preview_rows(messages)
+            result_kind = "table" if table else "text"
 
-        yield {
-            "event": "final",
-            "data": json.dumps(
-                {
-                    "message": final_text,
-                    "resultKind": result_kind,
-                    "table": table,
-                }
-            ),
-        }
+            yield {
+                "event": "final",
+                "data": json.dumps(
+                    {
+                        "message": final_text,
+                        "resultKind": result_kind,
+                        "table": table,
+                    }
+                ),
+            }
+        except Exception as exc:
+            logging.exception("Chat stream failed")
+            yield {"event": "error", "data": _stream_error_message(exc, settings=self._settings)}
+            yield {"event": "done", "data": ""}
+            return
 
-    def _model(self) -> ChatOpenAI:
-        return ChatOpenAI(
-            model=self._settings.llm_model,
-            api_key=self._settings.llm_api_key,
-            base_url=self._settings.llm_api_base_url,
-            temperature=0,
+    def _model(self) -> BaseChatModel:
+        provider = self._settings.llm_provider.strip().lower()
+        if provider == "anthropic":
+            return ChatAnthropic(
+                model_name=self._settings.llm_model,
+                api_key=self._settings.llm_api_key,
+                base_url=self._settings.llm_api_base_url,
+                temperature=0,
+            )
+        if provider == "openai":
+            return ChatOpenAI(
+                model=self._settings.llm_model,
+                api_key=self._settings.llm_api_key,
+                base_url=self._settings.llm_api_base_url,
+                temperature=0,
+            )
+        raise ValueError(
+            f"Unsupported LLM_PROVIDER '{self._settings.llm_provider}'. "
+            "Expected one of: openai, anthropic."
         )
 
 
@@ -181,31 +204,30 @@ def _status_from_update(node_name: str, payload: dict[str, Any]) -> dict[str, An
     if not isinstance(messages, list) or not messages:
         return None
 
-    if node_name == "agent":
-        for message in messages:
-            if isinstance(message, AIMessage) and message.tool_calls:
-                tool_names = [str(tool_call.get("name")) for tool_call in message.tool_calls if tool_call.get("name")]
-                if tool_names:
-                    tool_calls = [
-                        {"id": str(tool_call.get("id")), "name": str(tool_call.get("name"))}
-                        for tool_call in message.tool_calls
-                        if tool_call.get("id") and tool_call.get("name")
-                    ]
-                    return {
-                        "node": node_name,
-                        "message": f"Model selected tool call(s): {', '.join(tool_names)}",
-                        "toolName": tool_names[0] if len(tool_names) == 1 else None,
-                        "toolCallIds": [str(tool_call.get("id")) for tool_call in message.tool_calls if tool_call.get("id")],
-                        "toolCalls": tool_calls,
-                        "tokenUsage": _extract_token_usage(message, shared_across=len(tool_calls) or len(tool_names)),
-                    }
-            if isinstance(message, AIMessage):
-                text = _message_text(message.content)
-                if text:
-                    return {
-                        "node": node_name,
-                        "message": "Model produced final answer",
-                    }
+    for message in messages:
+        if isinstance(message, AIMessage) and message.tool_calls:
+            tool_names = [str(tool_call.get("name")) for tool_call in message.tool_calls if tool_call.get("name")]
+            if tool_names:
+                tool_calls = [
+                    {"id": str(tool_call.get("id")), "name": str(tool_call.get("name"))}
+                    for tool_call in message.tool_calls
+                    if tool_call.get("id") and tool_call.get("name")
+                ]
+                return {
+                    "node": node_name,
+                    "message": f"Model selected tool call(s): {', '.join(tool_names)}",
+                    "toolName": tool_names[0] if len(tool_names) == 1 else None,
+                    "toolCallIds": [str(tool_call.get("id")) for tool_call in message.tool_calls if tool_call.get("id")],
+                    "toolCalls": tool_calls,
+                    "tokenUsage": _extract_token_usage(message, shared_across=len(tool_calls) or len(tool_names)),
+                }
+        if isinstance(message, AIMessage):
+            text = _message_text(message.content)
+            if text:
+                return {
+                    "node": node_name,
+                    "message": "Model produced final answer",
+                }
 
     if node_name == "tools":
         for message in messages:
@@ -251,7 +273,7 @@ def _debug_events_from_update(
     )
 
     for message in messages:
-        if node_name == "agent" and isinstance(message, AIMessage):
+        if isinstance(message, AIMessage):
             for tool_call in message.tool_calls:
                 events.append(
                     {
@@ -317,6 +339,19 @@ def _serialize_message(message: BaseMessage) -> dict[str, Any]:
         payload["name"] = message.name
         payload["toolCallId"] = message.tool_call_id
     return payload
+
+
+def _stream_error_message(exc: BaseException, *, settings: Settings) -> str:
+    if isinstance(exc, APIConnectionError):
+        return (
+            "LLM request failed before any MarcoPolo tool call. "
+            f"The configured LLM endpoint could not be reached: {settings.llm_api_base_url}. "
+            "Check LLM_API_BASE_URL, DNS/network reachability, and that the endpoint matches the API key."
+        )
+    detail = str(exc).strip()
+    if detail:
+        return detail
+    return exc.__class__.__name__
 
 
 def _extract_token_usage(message: AIMessage, *, shared_across: int = 1) -> TokenUsage | None:

@@ -2,9 +2,9 @@
 
 This file points developers at the main integration seams in `marcopolo-integration-starter`.
 
-For the higher-level explanation of why embedded connection setup exists and how the MCP app host works, start with:
+For the higher-level explanation of the connection-management revamp, start with:
 
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/connection-setup-sdk-migration.md`
 
 ## Frontend
 
@@ -23,19 +23,9 @@ Contains:
 - app bootstrap and tab wiring in `App.tsx`
 - shared shell layout in `app/AppShell.tsx`
 - auth runtime and login screens in `auth/`
-- connections runtime and embedded setup launcher in `connections/`
+- connections runtime and API/SDK-backed setup and management dialogs in `connections/`
 - integrations examples in `integrations/`
 - chatbot runtime, trace, and tool inspector in `chatbot/`
-
-### Embedded MCP app host
-
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/frontend/src/EmbeddedConnectionSetupHost.tsx`
-
-Contains:
-
-- iframe host for the MarcoPolo `connection_setup` MCP app
-- popup handling for OAuth-style connection setup flows
-- setup-session polling and embedded continuation behavior
 
 ## Backend
 
@@ -49,22 +39,22 @@ Contains:
 
 - `.env` settings
 - endpoint configuration
-- Developer API token settings
-- WorkOS Standalone Connect settings
+- namespace-key and developer-token settings
+- `LLM_PROVIDER` switching for the chatbot runtime
 - dependency injection and request session resolution
 
 ### Authentication session logic
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth/service.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth/namespace_tokens.py`
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/app/services/auth/session_store.py`
 
 Contains:
 
 - demo app-session creation
 - selected auth mode persistence
-- WorkOS Standalone Connect redirect and callback handling
-- Marcopolo `/api/auth/bootstrap` exchange and authoritative company/namespace session state
-- Connect refresh handling
+- namespace-key user-token minting
+- resolved company and namespace session state
 
 ### MarcoPolo integration layer
 
@@ -76,8 +66,12 @@ Contains:
 
 - MarcoPolo session construction by auth mode
 - `list_connections`
+- connection type discovery and setup metadata normalization
+- dynamic connection creation
+- connection lookup and update
+- OAuth setup and reauthorization helpers
+- connection test and delete
 - demo connection install
-- embedded connection setup
 - `marcopolo-sdk` integration examples
 - MCP client interactions
 
@@ -102,9 +96,10 @@ Contains:
 - direct MCP transport to MarcoPolo
 - raw MCP tool binding for LangGraph
 - preloaded MarcoPolo skill bootstrap context
+- provider-switched LLM construction for OpenAI or Anthropic
 - MCP-only `create_react_agent(...)` execution
 - `workspace_shell` result normalization
-- streaming status + final results
+- streaming status and final results
 
 ### HTTP API routes
 
@@ -117,12 +112,15 @@ Contains:
 ## Tests
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/tests/test_api_smoke.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/tests/test_ai_agent_runtime.py`
+- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/backend/tests/test_auth_session_contract.py`
 
 Covers:
 
 - basic API shape
 - auth protections
+- namespace-key auth flow behavior
 - connection selection helpers
 - integration example selection helpers
 - MCP-only runtime streaming and response parsing
-- current smoke flow is documented separately in `docs/how-to-sanity-test.md`
+- the documented smoke flow in `docs/how-to-sanity-test.md`

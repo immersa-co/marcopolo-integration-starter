@@ -59,19 +59,12 @@ function App() {
     connectionsError,
     connectionActionMessage,
     demoInstallBusy,
-    embeddedSetupBusy,
     connectionsRefreshBusy,
     demoConnectionInput,
-    newConnectionTypeInput,
-    embeddedSetup,
-    activeEmbeddedConnectionName,
     marcoPoloReady,
     setDemoConnectionInput,
-    setNewConnectionTypeInput,
-    setEmbeddedSetup,
     handleConnectionsRefresh,
     handleDemoInstallSubmit,
-    handleEmbeddedSetupSubmit,
     refreshConnections,
   } = connectionsFeature
 
@@ -159,26 +152,18 @@ function App() {
         marcopoloAccessEnabled={marcopoloAccessEnabled}
         connectionsRefreshBusy={connectionsRefreshBusy}
         demoInstallBusy={demoInstallBusy}
-        embeddedSetupBusy={embeddedSetupBusy}
         demoConnectionInput={demoConnectionInput}
-        newConnectionTypeInput={newConnectionTypeInput}
         connectionActionMessage={connectionActionMessage}
         connections={connections}
         connectionsError={connectionsError}
         marcoPoloReady={marcoPoloReady}
-        embeddedSetup={embeddedSetup}
         apiBaseUrl={apiBaseUrl}
-        marcoPoloWebBaseUrl={config.marcoPolo.webBaseUrl}
-        activeEmbeddedConnectionName={activeEmbeddedConnectionName}
         onConnectionsRefresh={() => {
           handleConnectionsRefresh().catch(() => undefined)
         }}
         onDemoInstallSubmit={handleDemoInstallSubmit}
         onDemoConnectionInputChange={setDemoConnectionInput}
-        onEmbeddedSetupSubmit={handleEmbeddedSetupSubmit}
-        onNewConnectionTypeInputChange={setNewConnectionTypeInput}
-        onEmbeddedSetupClose={() => setEmbeddedSetup(null)}
-        onEmbeddedSetupRefreshConnections={async () => {
+        onConnectionCreated={async () => {
           await refreshConnections()
         }}
       />

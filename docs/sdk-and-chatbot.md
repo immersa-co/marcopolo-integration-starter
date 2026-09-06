@@ -4,7 +4,7 @@ The demo intentionally shows two different MarcoPolo consumption patterns.
 
 ## 1. SDK Path: Traditional Product Integration
 
-The `Integrations` tab demonstrates the non-agent path using `marcopolo-sdk`.
+The `Integrations` tab demonstrates the non-agent path using the latest `marcopolo-sdk` package from PyPI.
 
 References:
 
@@ -27,7 +27,7 @@ Flow:
 2. construct a MarcoPolo session
 3. call `list_connections`
 4. choose the first matching connection for the example
-5. call `marcopolo-sdk` `execute(...)`
+5. call the appropriate `marcopolo-sdk` operation
 6. return preview rows to the frontend
 
 Why this matters:
@@ -36,7 +36,7 @@ Why this matters:
 
 ## 2. Chatbot Path: MCP-Only LangGraph Agent
 
-The `Chatbot` tab demonstrates an MCP-only agent flow. It does not call `marcopolo-sdk`.
+The `Chatbot` tab demonstrates an MCP-only agent flow. It does not call `marcopolo-sdk` for the agent loop.
 
 Current implementation entrypoints:
 
@@ -58,10 +58,11 @@ Flow:
    - `query-and-analyze`
    - `using-connection-cli`
    - `using-marcopolo-workspace`
-6. run a LangGraph `create_react_agent(...)` loop so the model can choose tools dynamically
-7. let the model use `workspace_shell` and the other raw MCP tools directly
-8. normalize `workspace_shell` payloads so nested `stdout` JSON becomes preview rows in the UI
-9. stream tool-selection and tool-return status events to the frontend, then render final text and any preview table
+6. construct the LLM according to `LLM_PROVIDER`
+7. run a LangGraph `create_react_agent(...)` loop so the model can choose tools dynamically
+8. let the model use `workspace_shell` and the other raw MCP tools directly
+9. normalize `workspace_shell` payloads so nested `stdout` JSON becomes preview rows in the UI
+10. stream tool-selection and tool-return status events to the frontend, then render final text and any preview table
 
 Why this matters:
 
@@ -69,12 +70,39 @@ Why this matters:
 - it keeps the chatbot behavior closer to how Claude or ChatGPT reason over MCP tools and skills
 - it demonstrates that LangGraph can orchestrate a reasoning model over raw MarcoPolo tools without hardcoding a bespoke query planner
 
-Important design choices:
+## LLM Provider Switching
 
-- the chatbot path shares auth resolution with the rest of the app, so it works with either `MARCOPOLO_DEVELOPER_API_TOKEN` or WorkOS Standalone Connect
-- the chatbot path intentionally trusts the model plus the preloaded MarcoPolo skills rather than hardcoding a fixed "always read syntax first" workflow
-- connection-specific files are expected to be read dynamically through `workspace_shell` when the model decides they are needed
-- the repository now contains a single authoritative chatbot path under `backend/app/services/chatbot/`
+The chatbot runtime now supports:
+
+- `LLM_PROVIDER=openai`
+- `LLM_PROVIDER=anthropic`
+
+Shared companion settings:
+
+- `LLM_MODEL`
+- `LLM_API_BASE_URL`
+- `LLM_API_KEY`
+
+Implementation note:
+
+- `runtime.py` builds `ChatOpenAI` for `openai`
+- `runtime.py` builds `ChatAnthropic` for `anthropic`
+
+This keeps the MarcoPolo MCP flow constant while letting you swap the reasoning model provider.
+
+## Connection Management Path
+
+The `Connections` tab demonstrates the supported SDK/API-backed management flow.
+
+Capabilities shown in the demo:
+
+- create connection
+- edit connection
+- reauthorize OAuth connection
+- test connection
+- delete connection
+
+The connection-management UI is now driven by backend-normalized SDK metadata rather than the deprecated embedded MCP app path.
 
 ## How to Extend the Integrations Tab
 
@@ -110,17 +138,9 @@ Prompt corpus for regression checks:
 Run:
 
 ```bash
-.venv/bin/python -m unittest backend.tests.test_api_smoke backend.tests.test_ai_agent_runtime
+.venv/bin/python -m unittest backend.tests.test_api_smoke backend.tests.test_ai_agent_runtime backend.tests.test_auth_session_contract
 ```
 
 Manual smoke test:
 
 - `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/how-to-sanity-test.md`
-
-## Recommended First Validation
-
-1. install the Salesforce demo connection
-2. run the Salesforce integration example
-3. ask the Chatbot a Salesforce or connection-list question
-4. add Jira
-5. add a Jira integration example or ask the Chatbot about Jira

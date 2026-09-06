@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import copy
 import json
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
+from pydantic import TypeAdapter
 from marcopolo import Marcopolo
+from marcopolo._generated.models import ConnectionSetupCreateRequest, ConnectionSetupStart, ReturnUrl
 from marcopolo.errors import APIError, MarcopoloError
 
 from ....core.config import Settings
@@ -18,19 +19,30 @@ from .session_manager import (
     MarcoPoloSessionManagerError,
 )
 from ....models.api import (
+    ConnectionSetupField,
+    ConnectionSetupFieldChoice,
+    ConnectionSetupFileSpec,
+    ConnectionSetupMethod,
     ConnectionListItem,
+    DeleteConnectionResponse,
     ConnectionTestResultResponse,
+    ConnectionTypeDetailResponse,
+    ConnectionTypeListResponse,
+    ConnectionTypeSummary,
+    ConnectionTypeUiFeatures,
     OAuthConnectionTypeOption,
     OAuthConnectionTypesResponse,
     OAuthSetupSessionResponse,
     OAuthSetupStartResponse,
     ConnectionListResponse,
-    ConnectionSetupStatusResponse,
+    ManagedConnectionResponse,
+    ManagedConnectionSummary,
     DataConnectionOperation,
     DataConnectionOperationResponse,
     DataConnectionOperationsResponse,
     DemoConnectionInstallResponse,
-    EmbeddedConnectionSetupResponse,
+    CreateConnectionResponse,
+    CreatedConnectionSummary,
     WorkspaceShellResponse,
 )
 from ...auth import UserSession
@@ -92,13 +104,7 @@ class MarcoPoloService:
             ) from exc
 
         connections = [
-            ConnectionListItem(
-                name=item.connection.name,
-                type=item.connection.connection_type,
-                display_name=item.connection.display_name or item.connection.name,
-                capabilities=list(item.capabilities),
-                workspace_path=item.workspace_path,
-            )
+            _normalize_workspace_connection(item)
             for item in workspace_connections
         ]
         return ConnectionListResponse(
@@ -106,6 +112,155 @@ class MarcoPoloService:
             source="marcopolo-sdk",
             authenticated=True,
         )
+
+    async def list_connection_types(
+        self,
+        user_session: UserSession,
+        *,
+        search: str | None = None,
+        category: str | None = None,
+        auth_method: str | None = None,
+    ) -> ConnectionTypeListResponse:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                connection_types = await client.connection_types.list(
+                    search=search,
+                    category=category,
+                    auth_method=auth_method,  # type: ignore[arg-type]
+                )
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection-type list failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        return ConnectionTypeListResponse(
+            connectionTypes=[_normalize_connection_type_summary(item) for item in connection_types]
+        )
+
+    async def get_connection_type(
+        self,
+        user_session: UserSession,
+        connection_type: str,
+    ) -> ConnectionTypeDetailResponse:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                details = await client.connection_types.get(connection_type)
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection-type lookup failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        return _normalize_connection_type_detail(details)
+
+    async def create_connection(
+        self,
+        user_session: UserSession,
+        *,
+        connection_type: str,
+        display_name: str,
+        setup_method: str,
+        fields: dict[str, Any],
+    ) -> CreateConnectionResponse:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                connection = await client.connections.create(
+                    connection_type=connection_type,
+                    display_name=display_name,
+                    setup_method=setup_method,
+                    fields=fields,
+                )
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection creation failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        return CreateConnectionResponse(
+            connection=CreatedConnectionSummary(
+                name=connection.name,
+                type=connection.connection_type,
+                displayName=connection.display_name,
+                category=connection.category,
+                authMethod=connection.auth_method,
+                canManage=connection.can_manage,
+            ),
+            message="Connection created successfully.",
+        )
+
+    async def get_connection(
+        self,
+        user_session: UserSession,
+        connection_name: str,
+    ) -> ManagedConnectionResponse:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                connection = await client.connections.get(connection_name)
+                configuration = await client.connections.get_configuration(connection_name)
+                connection_type_detail = await client.connection_types.get(connection.connection_type)
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection lookup failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        normalized_detail = _normalize_connection_type_detail(connection_type_detail)
+        return ManagedConnectionResponse(
+            connection=_normalize_connection_summary(connection),
+            configuration=dict(configuration.configuration),
+            connectionTypeDetail=normalized_detail,
+            suggestedSetupMethod=_select_suggested_setup_method(
+                normalized_detail.setup_methods,
+                connection.auth_method,
+            ),
+            supportsReauthorize=(connection.auth_method == "oauth"),
+        )
+
+    async def update_connection(
+        self,
+        user_session: UserSession,
+        connection_name: str,
+        *,
+        display_name: str | None = None,
+        configuration_patch: dict[str, Any] | None = None,
+    ) -> ManagedConnectionSummary:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                connection = await client.connections.update(
+                    connection_name,
+                    display_name=display_name,
+                    configuration_patch=configuration_patch,
+                )
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection update failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        return _normalize_connection_summary(connection)
+
+    async def delete_connection(
+        self,
+        user_session: UserSession,
+        connection_name: str,
+    ) -> DeleteConnectionResponse:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                await client.connections.delete(connection_name)
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection delete failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        return DeleteConnectionResponse(message=f"Deleted connection {connection_name}.")
 
     async def invoke_data_connection_operation(
         self,
@@ -217,114 +372,6 @@ class MarcoPoloService:
             demoConnectionId=payload.get("demo_connection_id"),
         )
 
-    async def start_connection_setup(
-        self,
-        user_session: UserSession,
-        connection_type: str,
-        host_return_url: str | None = None,
-        host_origin: str | None = None,
-        host_session_id: str | None = None,
-    ) -> EmbeddedConnectionSetupResponse:
-        try:
-            call_result = await self._mcp_client.call_tool(
-                user_session,
-                name="connection_setup",
-                arguments={
-                    "type": connection_type,
-                    "intent_text": (
-                        "Starting a new Integration Demo connection setup flow for the "
-                        "authenticated user and preserving the widget payload for the "
-                        "embedded setup host."
-                    ),
-                },
-                read_timeout_seconds=120,
-            )
-        except MarcoPoloMcpClientError as exc:
-            raise MarcoPoloServiceError(exc.detail, status_code=exc.status_code) from exc
-
-        tool_result = _inject_embedded_host_context(
-            _tool_result_dict(call_result),
-            host_return_url=host_return_url,
-            host_origin=host_origin,
-            host_session_id=host_session_id,
-        )
-        tool_result = _override_embedded_api_base_url(
-            tool_result,
-            self._settings.public_api_base_url.rstrip("/") + "/api/connections/ext-app-proxy",
-        )
-        payload = _parse_tool_payload(tool_result)
-        widget_meta = _parse_tool_meta(tool_result)
-        return EmbeddedConnectionSetupResponse(
-            resource_uri="ui://connection-setup/app.html",
-            tool_result=tool_result,
-            tool_output=payload,
-            widget_meta=widget_meta,
-            status_url=payload.get("status_url"),
-        )
-
-    async def initiate_embedded_connection_oauth(
-        self,
-        *,
-        widget_token: str,
-        connection_type: str,
-        display_name: str,
-        is_sandbox: bool = False,
-    ) -> str:
-        url = self._build_server_url("/api/oauth/connection/initiate")
-        async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {widget_token}",
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "type": connection_type,
-                    "display_name": display_name,
-                    "is_sandbox": is_sandbox,
-                },
-            )
-
-        data = response.json() if response.content else {}
-        if response.status_code >= 400:
-            detail = (
-                data.get("detail")
-                or data.get("message")
-                or data.get("error")
-                or response.text
-                or f"MarcoPolo OAuth initiate failed with {response.status_code}"
-            )
-            raise MarcoPoloServiceError(str(detail), status_code=502 if response.status_code >= 500 else response.status_code)
-
-        oauth_url = data.get("oauth_url")
-        if not isinstance(oauth_url, str) or not oauth_url:
-            raise MarcoPoloServiceError(
-                "MarcoPolo OAuth initiate response did not include oauth_url.",
-                status_code=502,
-            )
-
-        return oauth_url
-
-    async def read_ui_resource_html(
-        self,
-        user_session: UserSession,
-        resource_uri: str,
-    ) -> str:
-        try:
-            result = await self._mcp_client.read_resource(user_session, uri=resource_uri)
-        except MarcoPoloMcpClientError as exc:
-            raise MarcoPoloServiceError(exc.detail, status_code=exc.status_code) from exc
-
-        for content in result.contents:
-            text = getattr(content, "text", None)
-            if isinstance(text, str) and text:
-                return text
-        raise MarcoPoloServiceError(
-            f"MarcoPolo resource {resource_uri} returned no text content.",
-            status_code=502,
-        )
-
     async def workspace_shell(
         self,
         user_session: UserSession,
@@ -354,123 +401,6 @@ class MarcoPoloService:
             execution_time=payload.get("execution_time"),
         )
 
-    async def get_connection_setup_status(
-        self,
-        user_session: UserSession,
-        status_url: str,
-    ) -> ConnectionSetupStatusResponse:
-        session = await self._resolve_session(user_session)
-        url = self._build_server_url(status_url)
-        async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.get(
-                url,
-                headers=self._http_headers(session),
-            )
-        if response.status_code >= 400:
-            raise MarcoPoloServiceError(
-                f"MarcoPolo setup status lookup failed with {response.status_code}: {response.text}",
-                status_code=response.status_code,
-            )
-        body = response.json()
-        return ConnectionSetupStatusResponse(
-            setup_session_id=body.get("setup_session_id"),
-            status=body.get("status", "unknown"),
-            close_popup=body.get("close_popup"),
-            resume_embedded=body.get("resume_embedded"),
-            refresh_connections=body.get("refresh_connections"),
-            connection_name=body.get("connection_name"),
-            connection_type=body.get("connection_type"),
-            display_name=body.get("display_name"),
-            error_code=body.get("error_code"),
-            error_message=body.get("error_message"),
-            resume_context=body.get("resume_context") or {},
-            host_mode=body.get("host_mode"),
-            host_return_url=body.get("host_return_url"),
-            host_origin=body.get("host_origin"),
-            host_session_id=body.get("host_session_id"),
-        )
-
-    async def get_embedded_setup_session_status(
-        self,
-        user_session: UserSession,
-        setup_session_id: str,
-    ) -> ConnectionSetupStatusResponse:
-        session = await self._resolve_session(user_session)
-        url = self._build_server_url(f"/api/oauth/connection/setup-sessions/{setup_session_id}/status")
-        async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.get(
-                url,
-                headers=self._http_headers(session),
-            )
-        if response.status_code >= 400:
-            raise MarcoPoloServiceError(
-                f"MarcoPolo setup session status lookup failed with {response.status_code}: {response.text}",
-                status_code=response.status_code,
-            )
-
-        body = _unwrap_success_data(response.json())
-        return ConnectionSetupStatusResponse(
-            setup_session_id=body.get("setup_session_id"),
-            status=body.get("status", "unknown"),
-            close_popup=body.get("close_popup"),
-            resume_embedded=body.get("resume_embedded"),
-            refresh_connections=body.get("refresh_connections"),
-            connection_name=body.get("connection_name"),
-            connection_type=body.get("connection_type"),
-            display_name=body.get("display_name"),
-            error_code=body.get("error_code"),
-            error_message=body.get("error_message"),
-            resume_context=body.get("resume_context") or {},
-            host_mode=body.get("host_mode"),
-            host_return_url=body.get("host_return_url"),
-            host_origin=body.get("host_origin"),
-            host_session_id=body.get("host_session_id"),
-        )
-
-    async def resume_embedded_setup_session(
-        self,
-        user_session: UserSession,
-        setup_session_id: str,
-    ) -> EmbeddedConnectionSetupResponse:
-        session = await self._resolve_session(user_session)
-        url = self._build_server_url(f"/api/oauth/connection/setup-sessions/{setup_session_id}/resume")
-        async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.get(
-                url,
-                headers=self._http_headers(session),
-            )
-        if response.status_code >= 400:
-            raise MarcoPoloServiceError(
-                f"MarcoPolo setup session resume failed with {response.status_code}: {response.text}",
-                status_code=response.status_code,
-            )
-
-        body = _unwrap_success_data(response.json())
-        tool_output = body.get("tool_output")
-        tool_meta = body.get("tool_meta")
-        if not isinstance(tool_output, dict) or not isinstance(tool_meta, dict):
-            raise MarcoPoloServiceError(
-                "MarcoPolo setup session resume did not include embedded tool payload.",
-                status_code=502,
-            )
-
-        tool_result = {
-            "structuredContent": copy.deepcopy(tool_output),
-            "_meta": {
-                "marcopolo/widget": {
-                    **tool_meta,
-                    "api_base_url": self._settings.public_api_base_url.rstrip("/") + "/api/connections/ext-app-proxy",
-                }
-            },
-        }
-        return EmbeddedConnectionSetupResponse(
-            resource_uri="ui://connection-setup/app.html",
-            tool_result=tool_result,
-            tool_output=tool_output,
-            widget_meta=tool_result["_meta"],
-            status_url=None,
-        )
-
     async def list_oauth_connection_types(
         self, user_session: UserSession
     ) -> OAuthConnectionTypesResponse:
@@ -491,9 +421,7 @@ class MarcoPoloService:
                 category=item.category,
             )
             for item in connection_types
-            # google_drive diverts to folder selection after token exchange,
-            # which cannot round-trip through a hosted setup session.
-            if not item.deprecated and item.connection_type != "google_drive"
+            if not item.deprecated
         ]
         options.sort(key=lambda option: option.display_name.lower())
         return OAuthConnectionTypesResponse(connectionTypes=options)
@@ -507,7 +435,7 @@ class MarcoPoloService:
         client_session_id: str | None = None,
     ) -> OAuthSetupStartResponse:
         session = await self._resolve_session(user_session)
-        return_url = f"{self._settings.frontend_base_url.rstrip('/')}/oauth-return"
+        return_url = _oauth_return_url(self._settings, connection_type)
         try:
             async with self._sdk_client(session) as client:
                 started = await client.connection_setup.start(
@@ -519,6 +447,62 @@ class MarcoPoloService:
         except (MarcopoloError, ValueError) as exc:
             raise MarcoPoloServiceError(
                 f"MarcoPolo connection setup start failed: {_describe_exception(exc)}",
+                status_code=_status_code_from_exception(exc),
+            ) from exc
+
+        return OAuthSetupStartResponse(
+            setupSessionId=started.setup_session_id,
+            status=started.status,
+            connectionType=started.connection_type,
+            connectionName=started.connection_name,
+            displayName=started.display_name,
+            authorizationUrl=started.authorization_url,
+            returnUrl=started.return_url,
+            expiresAt=started.expires_at.isoformat(),
+        )
+
+    async def reauthorize_connection(
+        self,
+        user_session: UserSession,
+        *,
+        connection_name: str,
+        client_session_id: str | None = None,
+    ) -> OAuthSetupStartResponse:
+        session = await self._resolve_session(user_session)
+        try:
+            async with self._sdk_client(session) as client:
+                connection = await client.connections.get(connection_name)
+                if connection.auth_method != "oauth":
+                    raise MarcoPoloServiceError(
+                        "Only OAuth connections can be re-authorized.",
+                        status_code=422,
+                    )
+                return_url = _oauth_return_url(self._settings, connection.connection_type)
+
+                # The generated request model supports reconnecting an existing
+                # OAuth connection, but the high-level SDK helper does not yet
+                # expose that parameter on connection_setup.start(...).
+                request = ConnectionSetupCreateRequest(
+                    connection_type=connection.connection_type,
+                    display_name=connection.display_name,
+                    return_url=ReturnUrl(return_url),
+                    client_session_id=client_session_id,
+                    requested_scopes=None,
+                    reconnect_connection_name=connection.name,
+                    is_sandbox=None,
+                    source_variant=None,
+                )
+                response = await client.connection_setup._request_json(
+                    "POST",
+                    "/api/v1/connection-setup-sessions",
+                    request.model_dump(mode="json", exclude_none=True),
+                )
+                started = response.validate(TypeAdapter(ConnectionSetupStart), "connection setup start")
+        except MarcoPoloServiceError:
+            raise
+        except (MarcopoloError, ValueError) as exc:
+            raise MarcoPoloServiceError(
+                f"MarcoPolo connection re-authorization failed: {_describe_exception(exc)}",
                 status_code=_status_code_from_exception(exc),
             ) from exc
 
@@ -644,73 +628,136 @@ def _parse_tool_payload(result: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _parse_tool_meta(result: dict[str, Any]) -> dict[str, Any]:
-    meta = result.get("_meta")
-    if not isinstance(meta, dict):
-        meta = result.get("meta")
-    if isinstance(meta, dict):
-        return meta
-    return {}
+def _normalize_connection_type_summary(item: Any) -> ConnectionTypeSummary:
+    return ConnectionTypeSummary(
+        type=item.connection_type,
+        displayName=item.display_name,
+        category=item.category,
+        description=item.description,
+        authMethods=list(item.auth_methods),
+        setupMethodKinds=sorted(
+            {method.kind for method in (item.setup_methods or []) if getattr(method, "kind", None)}
+        ),
+        requiresOAuth=item.ui_features.requires_oauth,
+        deprecated=bool(item.deprecated),
+    )
 
 
-def _override_embedded_api_base_url(result: dict[str, Any], api_base_url: str) -> dict[str, Any]:
-    updated = copy.deepcopy(result)
-    meta = updated.get("_meta")
-    if not isinstance(meta, dict):
-        meta = updated.get("meta")
-    if not isinstance(meta, dict):
-        return updated
-
-    widget_meta = meta.get("marcopolo/widget")
-    if not isinstance(widget_meta, dict):
-        return updated
-
-    widget_meta["api_base_url"] = api_base_url
-    return updated
+def _normalize_workspace_connection(item: Any) -> ConnectionListItem:
+    return ConnectionListItem(
+        name=item.connection.name,
+        type=item.connection.connection_type,
+        displayName=item.connection.display_name or item.connection.name,
+        authMethod=item.connection.auth_method,
+        canManage=bool(item.connection.can_manage),
+        accessReason=getattr(item.connection, "access_reason", None),
+        capabilities=list(item.capabilities),
+        workspacePath=item.workspace_path,
+    )
 
 
-def _unwrap_success_data(body: dict[str, Any]) -> dict[str, Any]:
-    if isinstance(body.get("data"), dict):
-        return body["data"]
-    return body
+def _normalize_connection_summary(item: Any) -> ManagedConnectionSummary:
+    return ManagedConnectionSummary(
+        name=item.name,
+        type=item.connection_type,
+        displayName=item.display_name,
+        authMethod=item.auth_method,
+        canManage=bool(item.can_manage),
+        accessReason=item.access_reason,
+        category=item.category,
+        connectionTypeDisplayName=item.connection_type_display_name,
+        isDemoConnection=bool(item.is_demo_connection),
+        isOwner=bool(item.is_owner),
+        isPersonal=bool(item.is_personal),
+        owner=item.owner,
+        shareMode=item.share_mode,
+    )
+ 
+
+def _select_suggested_setup_method(
+    setup_methods: list[ConnectionSetupMethod],
+    auth_method: str,
+) -> str | None:
+    if auth_method == "oauth":
+        oauth_method = next((method for method in setup_methods if method.kind == "hosted_oauth"), None)
+        return oauth_method.method if oauth_method else None
+    fields_method = next((method for method in setup_methods if method.kind == "fields"), None)
+    return fields_method.method if fields_method else (setup_methods[0].method if setup_methods else None)
 
 
-def _inject_embedded_host_context(
-    result: dict[str, Any],
-    *,
-    host_return_url: str | None,
-    host_origin: str | None,
-    host_session_id: str | None,
-) -> dict[str, Any]:
-    updated = copy.deepcopy(result)
+def _oauth_return_url(settings: Settings, connection_type: str) -> str | None:
+    # Google Drive hosted OAuth is accepted by MarcoPolo only as a first-party
+    # setup flow today. Sending a third-party return URL causes the setup start
+    # request to be rejected even though the connection type advertises
+    # hosted_oauth support in metadata.
+    if connection_type == "google_drive":
+        return None
+    return f"{settings.frontend_base_url.rstrip('/')}/oauth-return"
 
-    def update_payload(payload: dict[str, Any]) -> None:
-        payload["host_mode"] = "embedded"
-        payload["host_return_url"] = host_return_url
-        payload["host_origin"] = host_origin
-        payload["host_session_id"] = host_session_id
 
-    structured = updated.get("structuredContent")
-    if isinstance(structured, dict):
-        update_payload(structured)
-
-    structured_legacy = updated.get("structured_content")
-    if isinstance(structured_legacy, dict):
-        update_payload(structured_legacy)
-
-    contents = updated.get("content")
-    if isinstance(contents, list):
-        for item in contents:
-            if not isinstance(item, dict):
-                continue
-            block_payload = item.get("structuredContent")
-            if isinstance(block_payload, dict):
-                update_payload(block_payload)
-            json_payload = item.get("json")
-            if isinstance(json_payload, dict):
-                update_payload(json_payload)
-
-    return updated
+def _normalize_connection_type_detail(item: Any) -> ConnectionTypeDetailResponse:
+    return ConnectionTypeDetailResponse(
+        type=item.connection_type,
+        displayName=item.display_name,
+        category=item.category,
+        description=item.description,
+        authMethods=list(item.auth_methods),
+        uiFeatures=ConnectionTypeUiFeatures(
+            deleteWarning=item.ui_features.delete_warning,
+            filePicker=list(item.ui_features.file_picker),
+            isFileProvider=item.ui_features.is_file_provider,
+            isPersonal=item.ui_features.is_personal,
+            logoKey=item.ui_features.logo_key,
+            requiresOAuth=item.ui_features.requires_oauth,
+            supportsDownload=item.ui_features.supports_download,
+            supportsUpload=item.ui_features.supports_upload,
+            usesLocalFilePicker=item.ui_features.uses_local_file_picker,
+        ),
+        setupMethods=[
+            ConnectionSetupMethod(
+                method=method.method,
+                kind=method.kind,
+                category=method.category,
+                displayName=method.display_name,
+                description=method.description,
+                fields=[
+                    ConnectionSetupField(
+                        advanced=field.advanced,
+                        choices=(
+                            [
+                                ConnectionSetupFieldChoice(label=choice.label, value=choice.value)
+                                for choice in field.choices
+                            ]
+                            if field.choices
+                            else None
+                        ),
+                        default=field.default,
+                        description=field.description,
+                        file=(
+                            ConnectionSetupFileSpec(
+                                allowCreateEmpty=field.file.allow_create_empty,
+                                extensions=list(field.file.extensions) if field.file.extensions else None,
+                                infoText=field.file.info_text,
+                                maxSizeMb=field.file.max_size_mb,
+                            )
+                            if field.file
+                            else None
+                        ),
+                        groupLabel=field.group_label,
+                        itemType=field.item_type,
+                        label=field.label,
+                        minItems=field.min_items,
+                        name=field.name,
+                        required=field.required,
+                        secret=bool(field.secret),
+                        type=field.type,
+                    )
+                    for field in method.fields
+                ],
+            )
+            for method in (item.setup_methods or [])
+        ],
+    )
 
 
 def _describe_exception(exc: BaseException) -> str:

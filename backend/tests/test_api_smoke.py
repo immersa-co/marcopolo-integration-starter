@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 from langchain_core.messages import ToolMessage
@@ -18,6 +18,7 @@ from backend.app.services.platform.marcopolo.service import (
 from backend.app.services.auth import AuthPlatformError, validate_marcopolo_email_identity
 from backend.app.main import app
 from backend.app.models.api import ConnectionListItem, UserProfile
+from backend.app.services.platform import MarcoPoloService
 
 
 class ApiSmokeTests(unittest.TestCase):
@@ -99,29 +100,34 @@ class ApiSmokeTests(unittest.TestCase):
         connections = self.client.get("/api/connections")
         self.assertEqual(connections.status_code, 401)
 
-        embedded_setup = self.client.post(
-            "/api/connections/setup/embedded",
-            json={"connectionType": "jira"},
-        )
-        self.assertEqual(embedded_setup.status_code, 401)
+        connection_types = self.client.get("/api/connections/types")
+        self.assertEqual(connection_types.status_code, 401)
 
-        setup_session_status = self.client.get(
-            "/api/connections/setup-session-status",
-            params={"setupSessionId": "setup_test"},
-        )
-        self.assertEqual(setup_session_status.status_code, 401)
+        connection_type_detail = self.client.get("/api/connections/types/snowflake")
+        self.assertEqual(connection_type_detail.status_code, 401)
 
-        setup_session_resume = self.client.get(
-            "/api/connections/setup-session-resume",
-            params={"setupSessionId": "setup_test"},
+        create_connection = self.client.post(
+            "/api/connections",
+            json={
+                "connectionType": "snowflake",
+                "displayName": "Finance Snowflake",
+                "setupMethod": "credentials",
+                "fields": {},
+            },
         )
-        self.assertEqual(setup_session_resume.status_code, 401)
+        self.assertEqual(create_connection.status_code, 401)
 
-        setup_session_lookup = self.client.get(
-            "/api/connections/setup-session-lookup",
-            params={"hostSessionId": "host_test"},
+        get_connection = self.client.get("/api/connections/snowflake-finance")
+        self.assertEqual(get_connection.status_code, 401)
+
+        update_connection = self.client.patch(
+            "/api/connections/snowflake-finance",
+            json={"displayName": "Finance Snowflake"},
         )
-        self.assertEqual(setup_session_lookup.status_code, 401)
+        self.assertEqual(update_connection.status_code, 401)
+
+        delete_connection = self.client.delete("/api/connections/snowflake-finance")
+        self.assertEqual(delete_connection.status_code, 401)
 
         chat = self.client.post("/api/chat", json={"message": "hello"})
         self.assertEqual(chat.status_code, 401)
@@ -132,53 +138,148 @@ class ApiSmokeTests(unittest.TestCase):
         marcopolo_authorize = self.client.get("/api/auth/marcopolo/authorize", follow_redirects=False)
         self.assertEqual(marcopolo_authorize.status_code, 401)
 
-    def test_ext_app_proxy_preserves_single_api_prefix(self) -> None:
-        captured: dict[str, object] = {}
-
-        class FakeUpstreamResponse:
-            status_code = 200
-            headers = {"content-type": "application/json"}
-            content = b'{"ok":true}'
-
-        class FakeAsyncClient:
-            def __init__(self, *args, **kwargs) -> None:
-                pass
-
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, exc_type, exc, tb) -> None:
-                return None
-
-            async def request(self, method, url, params=None, headers=None, content=None):
-                captured["method"] = method
-                captured["url"] = url
-                captured["params"] = dict(params or {})
-                captured["headers"] = dict(headers or {})
-                captured["content"] = content
-                return FakeUpstreamResponse()
-
-        with patch("backend.app.api.connections.httpx.AsyncClient", FakeAsyncClient):
-            response = self.client.get(
-                "/api/connections/ext-app-proxy/api/connections/types/?q=test",
-                headers={"Authorization": "Bearer widget-token"},
-            )
-
-        self.assertEqual(response.status_code, 200)
-        config = self.client.get("/api/config/public").json()
-        self.assertEqual(
-            captured["url"],
-            f"{config['marcoPolo']['apiBaseUrl']}/connections/types/",
+        reauthorize = self.client.post(
+            "/api/connections/snowflake-finance/reauthorize",
+            json={"clientSessionId": "demo"},
         )
-        self.assertEqual(captured["method"], "GET")
-        self.assertEqual(captured["params"], {"q": "test"})
-        self.assertEqual(
-            captured["headers"],
-            {
-                "Authorization": "Bearer widget-token",
-                "Accept": "*/*",
-            },
-        )
+        self.assertEqual(reauthorize.status_code, 401)
+
+    def test_connection_type_list_route_returns_normalized_contract(self) -> None:
+        with self.client as client:
+            auth_response = client.post("/api/auth/demo-session", json={"email": "demo.user@example.com"})
+            self.assertEqual(auth_response.status_code, 200)
+
+            fake_response = {
+                "connectionTypes": [
+                    {
+                        "type": "snowflake",
+                        "displayName": "Snowflake",
+                        "category": "warehouse",
+                        "description": "Cloud warehouse",
+                        "authMethods": ["manual"],
+                        "setupMethodKinds": ["fields"],
+                        "requiresOAuth": False,
+                        "deprecated": False,
+                    }
+                ]
+            }
+
+            with patch.object(
+                MarcoPoloService,
+                "list_connection_types",
+                new=AsyncMock(return_value=fake_response),
+            ) as mocked:
+                response = client.get(
+                    "/api/connections/types",
+                    params={"search": "snow", "authMethod": "manual"},
+                )
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["connectionTypes"][0]["type"], "snowflake")
+            self.assertEqual(payload["connectionTypes"][0]["setupMethodKinds"], ["fields"])
+            mocked.assert_awaited_once()
+
+    def test_connection_type_detail_route_returns_setup_methods(self) -> None:
+        with self.client as client:
+            auth_response = client.post("/api/auth/demo-session", json={"email": "demo.user@example.com"})
+            self.assertEqual(auth_response.status_code, 200)
+
+            fake_response = {
+                "type": "snowflake",
+                "displayName": "Snowflake",
+                "category": "warehouse",
+                "description": "Cloud warehouse",
+                "authMethods": ["manual"],
+                "uiFeatures": {
+                    "deleteWarning": "default",
+                    "filePicker": [],
+                    "isFileProvider": False,
+                    "isPersonal": False,
+                    "logoKey": None,
+                    "requiresOAuth": False,
+                    "supportsDownload": False,
+                    "supportsUpload": False,
+                    "usesLocalFilePicker": False,
+                },
+                "setupMethods": [
+                    {
+                        "method": "credentials",
+                        "kind": "fields",
+                        "category": "manual",
+                        "displayName": "Credentials",
+                        "description": "Provide credentials.",
+                        "fields": [
+                            {
+                                "name": "account",
+                                "type": "string",
+                                "required": True,
+                                "secret": False,
+                                "label": "Account",
+                                "description": "Snowflake account.",
+                                "advanced": False,
+                                "choices": None,
+                                "default": None,
+                                "file": None,
+                                "groupLabel": "Basics",
+                                "itemType": None,
+                                "minItems": None,
+                            }
+                        ],
+                    }
+                ],
+            }
+
+            with patch.object(
+                MarcoPoloService,
+                "get_connection_type",
+                new=AsyncMock(return_value=fake_response),
+            ) as mocked:
+                response = client.get("/api/connections/types/snowflake")
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["setupMethods"][0]["method"], "credentials")
+            self.assertEqual(payload["setupMethods"][0]["fields"][0]["name"], "account")
+            mocked.assert_awaited_once()
+
+    def test_create_connection_route_returns_created_connection(self) -> None:
+        with self.client as client:
+            auth_response = client.post("/api/auth/demo-session", json={"email": "demo.user@example.com"})
+            self.assertEqual(auth_response.status_code, 200)
+
+            fake_response = {
+                "connection": {
+                    "name": "snowflake-finance-snowflake",
+                    "type": "snowflake",
+                    "displayName": "Finance Snowflake",
+                    "category": "warehouse",
+                    "authMethod": "manual",
+                    "canManage": True,
+                },
+                "message": "Connection created successfully.",
+            }
+
+            with patch.object(
+                MarcoPoloService,
+                "create_connection",
+                new=AsyncMock(return_value=fake_response),
+            ) as mocked:
+                response = client.post(
+                    "/api/connections",
+                    json={
+                        "connectionType": "snowflake",
+                        "displayName": "Finance Snowflake",
+                        "setupMethod": "credentials",
+                        "fields": {"account": "acme-west"},
+                    },
+                )
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertEqual(payload["connection"]["name"], "snowflake-finance-snowflake")
+            self.assertEqual(payload["connection"]["authMethod"], "manual")
+            mocked.assert_awaited_once()
 
     def test_connection_matcher_supports_non_demo_connectors(self) -> None:
         connections = [
@@ -235,12 +336,18 @@ class ApiSmokeTests(unittest.TestCase):
                 name="sfdc-prod-random-slug",
                 displayName="Salesforce Prod",
                 type="salesforce",
+                authMethod="manual",
+                canManage=True,
+                accessReason="owner",
                 capabilities=["query"],
             ),
             ConnectionListItem(
                 name="other-connection",
                 displayName="Other",
                 type="postgres",
+                authMethod="manual",
+                canManage=True,
+                accessReason="owner",
                 capabilities=["query"],
             ),
         ]

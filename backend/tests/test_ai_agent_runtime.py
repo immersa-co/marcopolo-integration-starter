@@ -36,7 +36,7 @@ class AiAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_stream_chat_surfaces_tool_trace_and_workspace_shell_rows(self) -> None:
         updates = [
             {
-                "agent": {
+                "model": {
                     "messages": [
                         AIMessage(
                             content="",
@@ -73,7 +73,7 @@ class AiAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
                 }
             },
             {
-                "agent": {
+                "model": {
                     "messages": [
                         AIMessage(content="I found two connections that match the request.")
                     ]
@@ -98,7 +98,7 @@ class AiAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
         chat_run = ChatRun(chat_id="chat-1", message="List connections", user_session=session)
 
         with patch(
-            "backend.app.services.chatbot.ai_agent.runtime.create_react_agent",
+            "backend.app.services.chatbot.ai_agent.runtime.create_agent",
             return_value=_FakeStreamingAgent(updates),
         ):
             events = [event async for event in self.service.stream_chat(chat_run)]
@@ -108,7 +108,7 @@ class AiAgentRuntimeTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn(
             {
-                "node": "agent",
+                "node": "model",
                 "message": "Model selected tool call(s): workspace_shell",
                 "toolName": "workspace_shell",
                 "toolCallIds": ["call_123"],

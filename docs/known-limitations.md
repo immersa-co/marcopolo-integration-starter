@@ -1,39 +1,46 @@
 # Known Limitations
 
-## 1. Create Connection Only
+## 1. Dynamic Setup Field Support Is Still Incremental
 
-The current embedded connection flow supports creating connections.
+The current demo renders connection forms from MarcoPolo connection-type metadata.
 
-Not yet supported in this demo:
+The current implementation supports the common field shapes needed for the main providers:
 
-- edit an existing connection
-- test an existing connection from the embedded detail view
+- string
+- number and integer
+- boolean
+- array values
+- hosted OAuth setup methods
 
-Those are next on the roadmap.
+If a provider depends on richer nested objects, file uploads inside the setup flow, or more specialized widgets, the dialog may still need provider-specific follow-up work.
 
-## 2. Embedded MCP App Is the Current Connection UX
+## 2. The Demo Session Model Is Intentionally Simple
 
-The current demo uses the embedded MarcoPolo MCP app for connection configuration.
+The app still uses:
 
-If that approach is not desirable for a product:
+- a demo email field
+- an in-memory local session
+- a thin backend wrapper around MarcoPolo
 
-- a dedicated MarcoPolo connection-management API
-- and a custom application-owned UI
+That is appropriate for an integration reference app, but it is not a production-ready auth or session architecture.
 
-are the alternative direction on the roadmap.
+## 3. Chatbot Quality Depends On External LLM Provider Configuration
 
-## 3. Google Drive Configuration Is Not Yet Supported In The Stable Demo
+The LangGraph runtime now supports both OpenAI and Anthropic through `LLM_PROVIDER`, but the demo still depends on:
 
-Google Drive embedded setup is intentionally not part of the stable demo baseline.
+- a valid model name
+- a reachable provider endpoint
+- an API key with quota
 
-Reason:
+If those are misconfigured, the chatbot will fail before any MarcoPolo tool call.
 
-- Google Picker introduces additional popup and post-auth continuation complexity that is not yet stable in the embedded host flow
+## 4. Some Provider UX Still Needs More Depth
 
-For the stable demo path, use:
+The current implementation proves the SDK/API-driven connection-management pattern, including create, edit, reauthorize, test, and delete.
 
-- Salesforce
-- Jira
-- other non-Google connections that do not require the same Picker continuation model
+Some providers may still benefit from:
 
-This is a roadmap item, not a rejected direction.
+- richer validation
+- provider-specific help text
+- more polished advanced-field widgets
+- more guided error recovery

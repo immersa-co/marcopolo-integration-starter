@@ -41,6 +41,9 @@ class ConnectionListItem(BaseModel):
     name: str
     type: str
     display_name: str = Field(alias="displayName")
+    auth_method: str = Field(alias="authMethod")
+    can_manage: bool = Field(alias="canManage")
+    access_reason: str | None = Field(alias="accessReason", default=None)
     capabilities: list[str]
     workspace_path: str | None = Field(alias="workspacePath", default=None)
 
@@ -51,6 +54,96 @@ class ConnectionListResponse(BaseModel):
     authenticated: bool
     source: str
     connections: list[ConnectionListItem]
+
+
+class ConnectionTypeSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: str
+    display_name: str = Field(alias="displayName")
+    category: str | None = None
+    description: str | None = None
+    auth_methods: list[str] = Field(alias="authMethods")
+    setup_method_kinds: list[str] = Field(alias="setupMethodKinds")
+    requires_oauth: bool = Field(alias="requiresOAuth")
+    deprecated: bool
+
+
+class ConnectionTypeListResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    connection_types: list[ConnectionTypeSummary] = Field(alias="connectionTypes")
+
+
+class ConnectionTypeUiFeatures(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    delete_warning: str = Field(alias="deleteWarning")
+    file_picker: list[str] = Field(alias="filePicker")
+    is_file_provider: bool = Field(alias="isFileProvider")
+    is_personal: bool = Field(alias="isPersonal")
+    logo_key: str | None = Field(alias="logoKey", default=None)
+    requires_oauth: bool = Field(alias="requiresOAuth")
+    supports_download: bool = Field(alias="supportsDownload")
+    supports_upload: bool = Field(alias="supportsUpload")
+    uses_local_file_picker: bool = Field(alias="usesLocalFilePicker")
+
+
+class ConnectionSetupFieldChoice(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    label: str
+    value: str
+
+
+class ConnectionSetupFileSpec(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    allow_create_empty: bool | None = Field(alias="allowCreateEmpty", default=None)
+    extensions: list[str] | None = None
+    info_text: str | None = Field(alias="infoText", default=None)
+    max_size_mb: int | None = Field(alias="maxSizeMb", default=None)
+
+
+class ConnectionSetupField(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    advanced: bool | None = None
+    choices: list[ConnectionSetupFieldChoice] | None = None
+    default: Any = None
+    description: str | None = None
+    file: ConnectionSetupFileSpec | None = None
+    group_label: str | None = Field(alias="groupLabel", default=None)
+    item_type: str | None = Field(alias="itemType", default=None)
+    label: str | None = None
+    min_items: int | None = Field(alias="minItems", default=None)
+    name: str
+    required: bool
+    secret: bool = False
+    type: str
+
+
+class ConnectionSetupMethod(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    method: str
+    kind: str
+    category: str
+    display_name: str = Field(alias="displayName")
+    description: str | None = None
+    fields: list[ConnectionSetupField]
+
+
+class ConnectionTypeDetailResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: str
+    display_name: str = Field(alias="displayName")
+    category: str | None = None
+    description: str | None = None
+    auth_methods: list[str] = Field(alias="authMethods")
+    ui_features: ConnectionTypeUiFeatures = Field(alias="uiFeatures")
+    setup_methods: list[ConnectionSetupMethod] = Field(alias="setupMethods")
 
 
 class ConnectionSetupRequest(BaseModel):
@@ -73,55 +166,72 @@ class DemoConnectionInstallResponse(BaseModel):
     demo_connection_id: str | None = Field(alias="demoConnectionId", default=None)
 
 
-class ConnectionSetupStatusResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    setup_session_id: str | None = Field(alias="setupSessionId", default=None)
-    status: str
-    close_popup: bool | None = Field(alias="closePopup", default=None)
-    resume_embedded: bool | None = Field(alias="resumeEmbedded", default=None)
-    refresh_connections: bool | None = Field(alias="refreshConnections", default=None)
-    connection_name: str | None = Field(alias="connectionName", default=None)
-    connection_type: str | None = Field(alias="connectionType", default=None)
-    display_name: str | None = Field(alias="displayName", default=None)
-    error_code: str | None = Field(alias="errorCode", default=None)
-    error_message: str | None = Field(alias="errorMessage", default=None)
-    resume_context: dict[str, Any] = Field(alias="resumeContext", default_factory=dict)
-    host_mode: str | None = Field(alias="hostMode", default=None)
-    host_return_url: str | None = Field(alias="hostReturnUrl", default=None)
-    host_origin: str | None = Field(alias="hostOrigin", default=None)
-    host_session_id: str | None = Field(alias="hostSessionId", default=None)
-
-
-class EmbeddedConnectionSetupResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    resource_uri: str = Field(alias="resourceUri")
-    tool_result: dict[str, Any] = Field(alias="toolResult")
-    tool_output: dict[str, Any] = Field(alias="toolOutput")
-    widget_meta: dict[str, Any] = Field(alias="widgetMeta")
-    status_url: str | None = Field(alias="statusUrl", default=None)
-
-
-class EmbeddedConnectionOAuthInitiateRequest(BaseModel):
+class CreateConnectionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     connection_type: str = Field(alias="connectionType")
     display_name: str = Field(alias="displayName")
-    widget_token: str = Field(alias="widgetToken")
-    is_sandbox: bool = Field(alias="isSandbox", default=False)
+    setup_method: str = Field(alias="setupMethod")
+    fields: dict[str, Any]
 
 
-class EmbeddedConnectionOAuthInitiateResponse(BaseModel):
+class CreatedConnectionSummary(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    oauth_url: str = Field(alias="oauthUrl")
+    name: str
+    type: str
+    display_name: str = Field(alias="displayName")
+    category: str | None = None
+    auth_method: str = Field(alias="authMethod")
+    can_manage: bool = Field(alias="canManage")
 
 
-class EmbeddedSetupSessionLookupResponse(BaseModel):
+class CreateConnectionResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    setup_session_id: str = Field(alias="setupSessionId")
+    connection: CreatedConnectionSummary
+    message: str
+
+
+class ManagedConnectionSummary(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    type: str
+    display_name: str = Field(alias="displayName")
+    auth_method: str = Field(alias="authMethod")
+    can_manage: bool = Field(alias="canManage")
+    access_reason: str = Field(alias="accessReason")
+    category: str | None = None
+    connection_type_display_name: str = Field(alias="connectionTypeDisplayName")
+    is_demo_connection: bool = Field(alias="isDemoConnection")
+    is_owner: bool = Field(alias="isOwner")
+    is_personal: bool = Field(alias="isPersonal")
+    owner: str | None = None
+    share_mode: str = Field(alias="shareMode")
+
+
+class ManagedConnectionResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    connection: ManagedConnectionSummary
+    configuration: dict[str, Any]
+    connection_type_detail: ConnectionTypeDetailResponse = Field(alias="connectionTypeDetail")
+    suggested_setup_method: str | None = Field(alias="suggestedSetupMethod", default=None)
+    supports_reauthorize: bool = Field(alias="supportsReauthorize")
+
+
+class UpdateConnectionRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    display_name: str | None = Field(alias="displayName", default=None)
+    configuration_patch: dict[str, Any] = Field(alias="configurationPatch", default_factory=dict)
+
+
+class DeleteConnectionResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    message: str
 
 
 class WorkspaceShellResponse(BaseModel):
@@ -153,6 +263,12 @@ class OAuthSetupStartRequest(BaseModel):
 
     connection_type: str = Field(alias="connectionType")
     display_name: str = Field(alias="displayName")
+    client_session_id: str | None = Field(alias="clientSessionId", default=None)
+
+
+class ReauthorizeConnectionRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     client_session_id: str | None = Field(alias="clientSessionId", default=None)
 
 

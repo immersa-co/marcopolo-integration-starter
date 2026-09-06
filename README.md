@@ -1,41 +1,57 @@
 # MarcoPolo Integration Demo
 
-This repository is intended to be published as `marcopolo-integration-starter`.
+This is a reference app with separate frontend and backend processes. It shows how a partner application can integrate with **MarcoPolo production**, using the MarcoPolo python API SDK as well as MCP Protocol.
 
-It is a local reference app with separate frontend and backend processes that shows how a custom web application can integrate MarcoPolo in three ways:
+The following use patterns are demonstrated:
 
-- embedded connection setup through MarcoPolo MCP apps
-- traditional product integrations through `marcopolo-sdk`
-- agentic workflows through raw MarcoPolo MCP tools and LangGraph
-- WorkOS Standalone Connect authorization for a user already authenticated by the partner application
+- Authorize calls to MarcoPolo using namespace-key token to create and work with named user workspaces
+- Install demo datasource connections in the workspace
+- Manage (create, update, test, delete) data source connections for the workspace
+- Implement LangGraph agentic workflows using MarcoPolo MCP tools 
 
 The running app is intentionally presented as **MarcoPolo Integration Demo**. The repository name is **marcopolo-integration-starter** because it is meant to be copied, studied, and extended by developers.
 
 ## Start Here
 
-Read the developer guide:
+Read the developer guide first:
 
 - `docs/README.md`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/README.md`
 
 Recommended first path:
 
-1. Copy `.env.example` to `.env` and fill the empty local secret values
-2. Start the local Marcopolo stack on `http://localhost:8000`
-3. Start the starter backend and frontend
-4. Select `WorkOS Standalone Connect (recommended)` and create a demo app session for the partner user
-5. Complete the Entelligence WorkOS Standalone Connect flow
-6. Confirm the resolved `namespace` and `company` in the session strip
-7. Install the Salesforce demo connection and validate the `Integrations` and `Chatbot` tabs
+1. Copy `.env.example` to `.env`.
+2. Fill the required production MarcoPolo and LLM settings.
+3. Ask the MarcoPolo team for a valid `MARCOPOLO_NAMESPACE_KEY`.
+4. Start the backend and frontend.
+5. Open `http://localhost:5173`.
+6. Choose `Namespace key (recommended)`.
+7. Create a demo app session for a named production user account (email)
+8. Confirm the resolved `namespace` and `company` in the session strip.
+9. Install the Salesforce demo connection or use `Add Data Source to create any supported connection`.
+10. Refresh the list of connections and edit and test the connections.
+11. From the `Integrations`tab, click the Salesforce question to get response from Salesforce demo connection
+12. From the Chatbot tab, ask any natural language question for any created valid connection, just like you would from Claude Desktop or ChatGPT.
 
-The demo app session represents a user the partner application has already authenticated. WorkOS Standalone Connect
-then authorizes MarcoPolo access and resolves the partner namespace; the developer-token mode is only a local shortcut for an already provisioned
-workspace and must not be used to validate partner routing.
+The demo app session represents a user the partner application already authenticated. In the recommended mode, the backend uses a MarcoPolo namespace key to mint a short-lived user token and resolve the correct namespace and company for that user. The developer-token mode is only a local shortcut for your existing MarcoPolo workspace in case its convenient to test this without getting a Namespace key from the MarcoPolo team.
 
-For the exact browser-based regression flow the repo now uses, see:
+For the browser-based regression flow the repo uses, see:
 
-- `docs/how-to-sanity-test.md`
-- `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/how-to-sanity-test.md`
+- `docs/how-to-sanity-test.md` 
+
+## Prerequisites
+
+Required tools:
+
+- `python3` 3.11+
+- `pip`
+- `node` 20+
+- `npm` 10+
+
+Optional check:
+
+```bash
+./scripts/check-prereqs.sh
+```
 
 ## Local Setup
 
@@ -55,29 +71,53 @@ npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173
 
 Open `http://localhost:5173`.
 
+## Required Configuration
+
+Minimum production-oriented settings:
+
+- `SESSION_SECRET`
+- `MARCOPOLO_MCP_URL`
+- `MARCOPOLO_API_BASE_URL`
+- `MARCOPOLO_WEB_BASE_URL`
+- `MARCOPOLO_NAMESPACE_KEY`
+- `LLM_PROVIDER`
+- `LLM_MODEL`
+- `LLM_API_BASE_URL`
+- `LLM_API_KEY`
+- `SKILL_REPO_PATH`
+
+Notes:
+
+- Get `MARCOPOLO_NAMESPACE_KEY` from the MarcoPolo team.
+- Use a valid MarcoPolo production user email in the demo app session form.
+- `LLM_PROVIDER` currently supports `openai` and `anthropic`.
+
 ## Docs
 
 - Developer Guide: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/README.md`
 - Authentication Modes: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/authentication-modes.md`
-- WorkOS Standalone Connect Flow: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/workos-connect-authz.md`
 - Partner Namespace Manual E2E: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/partner-namespace-manual-e2e.md`
-- Embedded Connection Setup: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/embedded-connection-setup.md`
+- Connection Setup Migration Note: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/connection-setup-sdk-migration.md`
 - SDK and Chatbot Guide: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/sdk-and-chatbot.md`
 - Sanity Test: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/how-to-sanity-test.md`
 - Repo Map: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/repo-map.md`
 - Known Limitations: `https://github.com/immersa-co/marcopolo-integration-starter/blob/main/docs/known-limitations.md`
 
+
+
 ## Architecture Split
 
+- `Connections` is the SDK/API-backed connection-management path. It supports:
+  - create connection
+  - edit connection
+  - reauthorize OAuth connections
+  - test connection
+  - delete connection
 - `Integrations` is the deterministic product-style path. It uses `marcopolo-sdk` through `backend/app/services/platform/marcopolo/service.py`.
-- `Chatbot` is the MCP-only agent path. It uses `backend/app/services/chatbot/ai_agent/` to open a direct MCP session, load raw MarcoPolo tools, preload the three core MarcoPolo skills, and run a LangGraph `create_react_agent(...)` loop without calling the SDK.
-- Both paths share the same auth/session resolution. Use WorkOS Standalone Connect to validate the partner flow; the Developer API Token is only an isolated local shortcut.
-- `Connections` is the embedded MCP-app path. It uses the backend proxy plus `EmbeddedConnectionSetupHost.tsx` to launch and resume connection setup flows inside the demo UI.
-- WorkOS Standalone Connect is not the app's primary login system. The demo first creates a local app session for an already-authenticated user, then obtains a WorkOS access token that the backend forwards to MarcoPolo.
+- `Chatbot` is the MCP-only agent path. It uses `backend/app/services/chatbot/ai_agent/` to open a direct MCP session, load raw MarcoPolo tools, preload the core MarcoPolo skills, and run a LangGraph `create_react_agent(...)` loop without calling the SDK.
+- Namespace-key auth is not the app's primary login system. The demo first creates a local app session for an already-authenticated user, then exchanges the configured MarcoPolo namespace key for a short-lived user token.
 
 ## Current Structure
-
-The repo was recently reorganized so the main code is grouped by feature and shared platform layers.
 
 Backend:
 
@@ -88,18 +128,18 @@ Backend:
 - `backend/app/models/`
   - API request/response models
 - `backend/app/services/auth/`
-  - local demo session handling and WorkOS Standalone Connect orchestration
+  - local demo session handling and namespace-key auth orchestration
 - `backend/app/services/chatbot/`
   - chat run storage and the LangGraph MCP-only agent
 - `backend/app/services/platform/marcopolo/`
-  - shared MarcoPolo SDK/session/skill substrate used across features
+  - shared MarcoPolo SDK, session, MCP, and skill substrate used across features
 
 Frontend:
 
 - `frontend/src/auth/`
-  - auth gate, runtime bootstrap, and WorkOS redirect logic
+  - auth gate and runtime bootstrap
 - `frontend/src/connections/`
-  - connection list, demo install, and embedded setup launcher
+  - connection list, demo install, add/edit/test/delete dialogs, and API/SDK-backed setup flows
 - `frontend/src/integrations/`
   - deterministic SDK-backed examples
 - `frontend/src/chatbot/`

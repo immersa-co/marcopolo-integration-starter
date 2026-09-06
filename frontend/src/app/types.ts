@@ -35,6 +35,9 @@ export type ConnectionListItem = {
   name: string
   type: string
   displayName: string
+  authMethod: string
+  canManage: boolean
+  accessReason?: string | null
   capabilities: string[]
   workspacePath?: string | null
 }
@@ -45,6 +48,80 @@ export type ConnectionListResponse = {
   connections: ConnectionListItem[]
 }
 
+export type ConnectionTypeSummary = {
+  type: string
+  displayName: string
+  category?: string | null
+  description?: string | null
+  authMethods: string[]
+  setupMethodKinds: string[]
+  requiresOAuth: boolean
+  deprecated: boolean
+}
+
+export type ConnectionTypeListResponse = {
+  connectionTypes: ConnectionTypeSummary[]
+}
+
+export type ConnectionTypeUiFeatures = {
+  deleteWarning: string
+  filePicker: string[]
+  isFileProvider: boolean
+  isPersonal: boolean
+  logoKey?: string | null
+  requiresOAuth: boolean
+  supportsDownload: boolean
+  supportsUpload: boolean
+  usesLocalFilePicker: boolean
+}
+
+export type ConnectionSetupFieldChoice = {
+  label: string
+  value: string
+}
+
+export type ConnectionSetupFileSpec = {
+  allowCreateEmpty?: boolean | null
+  extensions?: string[] | null
+  infoText?: string | null
+  maxSizeMb?: number | null
+}
+
+export type ConnectionSetupField = {
+  advanced?: boolean | null
+  choices?: ConnectionSetupFieldChoice[] | null
+  default?: unknown
+  description?: string | null
+  file?: ConnectionSetupFileSpec | null
+  groupLabel?: string | null
+  itemType?: string | null
+  label?: string | null
+  minItems?: number | null
+  name: string
+  required: boolean
+  secret: boolean
+  type: string
+}
+
+export type ConnectionSetupMethod = {
+  method: string
+  kind: string
+  category: string
+  displayName: string
+  description?: string | null
+  fields: ConnectionSetupField[]
+}
+
+export type ConnectionTypeDetail = {
+  type: string
+  displayName: string
+  category?: string | null
+  description?: string | null
+  authMethods: string[]
+  uiFeatures: ConnectionTypeUiFeatures
+  setupMethods: ConnectionSetupMethod[]
+}
+
 export type DemoConnectionInstallResponse = {
   message: string
   connectionName: string
@@ -53,31 +130,49 @@ export type DemoConnectionInstallResponse = {
   demoConnectionId?: string | null
 }
 
-export type EmbeddedConnectionSetupResponse = {
-  resourceUri: string
-  toolResult: Record<string, unknown>
-  toolOutput: {
+export type CreateConnectionResponse = {
+  connection: {
+    name: string
     type: string
-    success?: boolean
-    error?: string | null
-    message?: string | null
-    hint?: string | null
-    resolution_mode?: string | null
-    resolution_reason?: string | null
-    suggested_types?: string[]
-    company?: string | null
-    workflow_type?: string | null
-    url?: string | null
-    instructions?: string[]
-    next_actions?: string[]
+    displayName: string
+    category?: string | null
+    authMethod: string
+    canManage: boolean
   }
-  widgetMeta: {
-    ['marcopolo/widget']?: {
-      api_token?: string
-      api_base_url?: string
-    }
+  message: string
+}
+
+export type ManagedConnectionResponse = {
+  connection: {
+    name: string
+    type: string
+    displayName: string
+    authMethod: string
+    canManage: boolean
+    accessReason: string
+    category?: string | null
+    connectionTypeDisplayName: string
+    isDemoConnection: boolean
+    isOwner: boolean
+    isPersonal: boolean
+    owner?: string | null
+    shareMode: string
   }
-  statusUrl?: string | null
+  configuration: Record<string, unknown>
+  connectionTypeDetail: ConnectionTypeDetail
+  suggestedSetupMethod?: string | null
+  supportsReauthorize: boolean
+}
+
+export type DeleteConnectionResponse = {
+  message: string
+}
+
+export type ConnectionTestResult = {
+  connectionName: string
+  status: string
+  message: string
+  latencyMs: number
 }
 
 export type DataConnectionOperation = {
