@@ -31,7 +31,7 @@ export default function IntegrationsTab({
           <h2>SDK-first examples for direct application code.</h2>
         </div>
         <p className="integration-copy">
-          These examples call the published <code>marcopolo-sdk</code> from the backend, separate from the Chatbot and embedded MCP app flows.
+          These examples call the published <code>marcopolo-sdk</code> from the backend, separate from the Chatbot and the API-driven connection setup flow.
         </p>
         <div className="integration-example-list">
           {dataConnectionOperations.map((example) => {

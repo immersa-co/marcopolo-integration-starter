@@ -1,48 +1,46 @@
 # Authentication Modes
 
-The recommended partner path is WorkOS Standalone Connect. The demo app-session form represents a user the partner
-application has already authenticated; it is not a login system or a replacement for the partner's authentication.
+The demo app-session form represents a user the partner application has already authenticated. It is not a login system or a replacement for the partner's authentication.
 
-## 1. WorkOS Standalone Connect (recommended)
+The current starter exposes two MarcoPolo auth modes.
+
+## 1. Namespace Key (recommended)
 
 What it is:
 
-- a WorkOS Standalone Connect flow that yields a user bearer token from the partner's AuthKit environment
+- a MarcoPolo-issued namespace key held by the partner backend
+- exchanged for a short-lived user token for the currently selected demo user
 
 Why it exists:
 
-- lets Marcopolo verify the partner issuer and resolve the correct namespace and company
-- avoids using a personal Marcopolo Developer API token for partner users
+- it is the intended partner integration path for this starter
+- it lets MarcoPolo resolve the authoritative namespace and company for the selected user
+- it avoids binding the demo to one developer workspace token
 
 How the demo uses it:
 
-1. the user selects `WorkOS Standalone Connect (recommended)`
-2. the user creates a demo app session for a user the partner application has already authenticated
-3. the backend starts WorkOS Standalone Connect authorization
-4. after the authorization code exchange, the backend calls `POST http://localhost:8000/api/auth/bootstrap`
-   with the WorkOS access token and refresh token
-5. the backend accepts the flow only when bootstrap returns `success: true` and
-   `data.redirect_url`, `data.company`, and `data.namespace`
-6. the session stores the authoritative `company` and `namespace` returned by Marcopolo
-7. MarcoPolo API and MCP calls use the WorkOS access token; they do not fall back to a developer token
+1. the user selects `Namespace key (recommended)`
+2. the user creates a demo app session for a user the partner application already authenticated
+3. the frontend redirects to `GET /api/auth/marcopolo/authorize`
+4. the backend exchanges `MARCOPOLO_NAMESPACE_KEY` for a short-lived user token by calling the namespace SDK client
+5. the backend stores:
+   - `marcopolo_access_token`
+   - `marcopolo_expires_at`
+   - `company`
+   - `namespace`
+6. MarcoPolo API and MCP calls use that issued user token
 
-The starter never derives `company` from the demo user email, parses unverified JWT claims, or sends a namespace
-chosen by the starter. Marcopolo resolves the namespace from the verified WorkOS issuer.
+Required `.env` value:
 
-Required `.env` values:
+- `MARCOPOLO_NAMESPACE_KEY`
 
-- `WORKOS_CONNECT_AUTH_URL`
-- `WORKOS_CONNECT_CLIENT_ID`
-- `WORKOS_CONNECT_CLIENT_SECRET`
-- `WORKOS_CONNECT_REDIRECT_URI`
+Important note:
 
-For the local Entelligence E2E, `.env.example` supplies the documented AuthKit domain and client ID. Secret values
-remain empty and must be filled locally.
+- ask the MarcoPolo team for a valid `MARCOPOLO_NAMESPACE_KEY`
 
 ## 2. Developer API Token (local shortcut only)
 
-This mode is retained for quickly inspecting an already provisioned local workspace. It is not a partner integration
-and must not be used to validate namespace resolution or the Entelligence E2E flow.
+This mode is retained for quickly inspecting an already provisioned workspace. It is not the partner integration path and must not be used as evidence that namespace-key user routing works correctly.
 
 Required `.env` value:
 

@@ -1,50 +1,72 @@
 # Partner Namespace Manual E2E
 
-This is the manual validation path for the Entelligence partner namespace. The partner application authenticates
-the user first; WorkOS Standalone Connect then authorizes MarcoPolo access.
+This is the manual validation path for the production partner namespace flow.
+
+The partner application authenticates the user first. The starter then uses a MarcoPolo-issued namespace key to obtain a short-lived MarcoPolo user token for that same user.
 
 ## Setup
 
-1. Start the local Marcopolo stack at `http://localhost:8000`.
-2. Copy `.env.example` to `.env`.
-3. Fill the empty session, WorkOS, and application secret values. Keep the documented AuthKit domain and client ID.
-4. Start the starter backend on `http://localhost:8001` and frontend on `http://localhost:5173`.
+1. Copy `.env.example` to `.env`.
+2. Fill the production endpoint values:
+   - `MARCOPOLO_MCP_URL`
+   - `MARCOPOLO_API_BASE_URL`
+   - `MARCOPOLO_WEB_BASE_URL`
+3. Ask the MarcoPolo team for `MARCOPOLO_NAMESPACE_KEY`.
+4. Fill the required LLM settings for the chatbot:
+   - `LLM_PROVIDER`
+   - `LLM_MODEL`
+   - `LLM_API_BASE_URL`
+   - `LLM_API_KEY`
+5. Start the backend on `http://localhost:8001`.
+6. Start the frontend on `http://localhost:5173`.
 
 ## Authentication
 
 1. Open `http://localhost:5173`.
-2. Select `WorkOS Standalone Connect (recommended)`.
+2. Select `Namespace key (recommended)`.
 3. Create a demo app session for a user the partner application has already authenticated.
-4. Complete the Entelligence WorkOS Standalone Connect flow.
 
-The backend exchanges the authorization code, then calls:
+The frontend then redirects to:
 
 ```text
-POST http://localhost:8000/api/auth/bootstrap
-Authorization: Bearer <WorkOS access token>
+GET /api/auth/marcopolo/authorize?returnTo=http://localhost:5173/
 ```
 
-The request also includes the WorkOS refresh token. Bootstrap must return `success: true` and
-`data.redirect_url`, `data.company`, and `data.namespace`. The starter stores the returned company and namespace
-only after this validation succeeds.
+The backend exchanges the configured namespace key for a short-lived user token using the selected user's email. After success, it stores:
 
-## Expected result
+- `marcopolo_access_token`
+- `marcopolo_expires_at`
+- `company`
+- `namespace`
+
+## Expected Result
 
 The session strip must clearly show:
 
-- `namespace: entelligence`
-- `company: entelligence-demo`
+- a resolved `namespace`
+- a resolved `company`
 
-The same values must be present in `GET http://localhost:8001/api/auth/session` as `namespace` and `company`, with
-`marcoPoloProvisioned: true`.
+The same values must be present in:
 
-After that, refresh the Connections tab and exercise the SDK and Chatbot examples. They must use the WorkOS Standalone Connect
-session. A Marcopolo developer token is only a local shortcut and is not valid evidence for this partner E2E.
+```text
+GET http://localhost:8001/api/auth/session
+```
 
-## Failure checks
+as `namespace` and `company`, with `marcoPoloProvisioned: true`.
 
-- A bootstrap HTTP or response-contract failure must return a useful error.
-- The session must remain unprovisioned after bootstrap failure.
+After that:
+
+1. refresh the `Connections` tab
+2. exercise `Add Data Source` or `Manage`
+3. run an `Integrations` example
+4. run a `Chatbot` prompt
+
+All of those paths must use the namespace-key-issued user token.
+
+## Failure Checks
+
+- A namespace-key exchange failure must return a useful error.
+- The session must remain unprovisioned after exchange failure.
 - Logout or a session reset must clear `namespace` and `company`.
-- The starter must not derive `company` from an email, parse unverified JWT claims, or send a starter-selected
-  namespace.
+- The starter must not derive `company` or `namespace` from the email address.
+- A developer API token must not be treated as proof that partner namespace routing works.

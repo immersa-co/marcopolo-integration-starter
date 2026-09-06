@@ -4,7 +4,6 @@ import type {
   ConnectionListItem,
   ConnectionListResponse,
   DemoConnectionInstallResponse,
-  EmbeddedConnectionSetupResponse,
 } from '../app/types'
 
 type UseConnectionsFeatureOptions = {
@@ -20,19 +19,12 @@ type UseConnectionsFeatureResult = {
   connectionsError: string | null
   connectionActionMessage: string | null
   demoInstallBusy: boolean
-  embeddedSetupBusy: boolean
   connectionsRefreshBusy: boolean
   demoConnectionInput: string
-  newConnectionTypeInput: string
-  embeddedSetup: EmbeddedConnectionSetupResponse | null
-  activeEmbeddedConnectionName?: string | null
   marcoPoloReady: boolean
   setDemoConnectionInput: (value: string) => void
-  setNewConnectionTypeInput: (value: string) => void
-  setEmbeddedSetup: (value: EmbeddedConnectionSetupResponse | null) => void
   handleConnectionsRefresh: () => Promise<void>
   handleDemoInstallSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>
-  handleEmbeddedSetupSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>
   refreshConnections: (signal?: AbortSignal) => Promise<void>
   resetConnectionsState: () => void
 }
@@ -48,11 +40,8 @@ export default function useConnectionsFeature({
   const [connectionsError, setConnectionsError] = useState<string | null>(null)
   const [connectionActionMessage, setConnectionActionMessage] = useState<string | null>(null)
   const [demoInstallBusy, setDemoInstallBusy] = useState(false)
-  const [embeddedSetupBusy, setEmbeddedSetupBusy] = useState(false)
   const [connectionsRefreshBusy, setConnectionsRefreshBusy] = useState(false)
   const [demoConnectionInput, setDemoConnectionInput] = useState('')
-  const [newConnectionTypeInput, setNewConnectionTypeInput] = useState('')
-  const [embeddedSetup, setEmbeddedSetup] = useState<EmbeddedConnectionSetupResponse | null>(null)
   const [marcoPoloReady, setMarcoPoloReady] = useState(false)
 
   async function refreshConnections(signal?: AbortSignal) {
@@ -168,107 +157,25 @@ export default function useConnectionsFeature({
     }
   }
 
-  async function handleEmbeddedSetupSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const connectionType = newConnectionTypeInput.trim()
-    if (!connectionType) {
-      setConnectionsError('Enter a connection type to configure in the embedded setup host.')
-      return
-    }
-
-    try {
-      setEmbeddedSetupBusy(true)
-      setConnectionActionMessage(null)
-      setConnectionsError(null)
-      const hostSessionId =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `host-${Date.now()}`
-      const response = await fetch(`${apiBaseUrl}/api/connections/setup/embedded`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          connectionType,
-          hostOrigin: window.location.origin,
-          hostReturnUrl: `${window.location.origin}/oauth-return`,
-          hostSessionId,
-        }),
-      })
-
-      if (!response.ok) {
-        let detail = ''
-        try {
-          const payload = (await response.json()) as { detail?: string }
-          detail = typeof payload.detail === 'string' ? payload.detail : ''
-        } catch {
-          detail = ''
-        }
-        throw new Error(detail || `Embedded setup request failed with ${response.status}`)
-      }
-
-      const payload = (await response.json()) as EmbeddedConnectionSetupResponse
-      if (payload.toolOutput.success === false) {
-        const suggestions = Array.isArray(payload.toolOutput.suggested_types)
-          ? payload.toolOutput.suggested_types.filter((value) => typeof value === 'string' && value.trim()).slice(0, 6)
-          : []
-        const detail = [
-          payload.toolOutput.error,
-          payload.toolOutput.message,
-          payload.toolOutput.hint,
-          payload.toolOutput.resolution_reason,
-        ]
-          .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-          .join(' ')
-        setEmbeddedSetup(null)
-        throw new Error(
-          suggestions.length
-            ? `${detail} Suggested types: ${suggestions.join(', ')}.`
-            : detail || 'MarcoPolo could not resolve that connection type.',
-        )
-      }
-      setEmbeddedSetup(payload)
-    } catch (error) {
-      setConnectionsError((error as Error).message)
-    } finally {
-      setEmbeddedSetupBusy(false)
-    }
-  }
-
   function resetConnectionsState() {
     setConnections([])
     setConnectionsError(null)
     setConnectionActionMessage(null)
-    setEmbeddedSetup(null)
     setMarcoPoloReady(false)
     onMarcoPoloReadyChange(false)
   }
-
-  const activeEmbeddedConnectionType =
-    typeof embeddedSetup?.toolOutput?.type === 'string' ? embeddedSetup.toolOutput.type : null
-  const activeEmbeddedConnectionName =
-    connections.find((item) => item.type === activeEmbeddedConnectionType)?.displayName
 
   return {
     connections,
     connectionsError,
     connectionActionMessage,
     demoInstallBusy,
-    embeddedSetupBusy,
     connectionsRefreshBusy,
     demoConnectionInput,
-    newConnectionTypeInput,
-    embeddedSetup,
-    activeEmbeddedConnectionName,
     marcoPoloReady,
     setDemoConnectionInput,
-    setNewConnectionTypeInput,
-    setEmbeddedSetup,
     handleConnectionsRefresh,
     handleDemoInstallSubmit,
-    handleEmbeddedSetupSubmit,
     refreshConnections,
     resetConnectionsState,
   }
