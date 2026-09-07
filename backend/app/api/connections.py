@@ -84,6 +84,7 @@ async def create_connection(
             display_name=body.display_name,
             setup_method=body.setup_method,
             fields=body.fields,
+            share_with_company=body.share_with_company,
         )
     except MarcoPoloServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
@@ -183,6 +184,7 @@ async def update_connection(
             connection_name,
             display_name=body.display_name,
             configuration_patch=body.configuration_patch,
+            share_with_company=body.share_with_company,
         )
         current = await marcopolo.get_connection(user_session, updated.name)
         return current

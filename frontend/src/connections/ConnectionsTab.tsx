@@ -125,7 +125,10 @@ export default function ConnectionsTab({
               <div>
                 <strong>{connection.displayName}</strong>
                 <p className="status-inline">
-                  {connection.type} · {connection.authMethod} · {connection.capabilities.join(', ')}
+                  {connection.type} · {connection.authMethod}
+                  {connection.sharedWithCompany ? ' · shared with company' : ''}
+                  {' · '}
+                  {connection.capabilities.join(', ')}
                 </p>
               </div>
               <div className="connection-row-actions">

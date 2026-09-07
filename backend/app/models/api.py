@@ -44,6 +44,8 @@ class ConnectionListItem(BaseModel):
     auth_method: str = Field(alias="authMethod")
     can_manage: bool = Field(alias="canManage")
     access_reason: str | None = Field(alias="accessReason", default=None)
+    share_mode: str | None = Field(alias="shareMode", default=None)
+    shared_with_company: bool = Field(alias="sharedWithCompany", default=False)
     capabilities: list[str]
     workspace_path: str | None = Field(alias="workspacePath", default=None)
 
@@ -173,6 +175,7 @@ class CreateConnectionRequest(BaseModel):
     display_name: str = Field(alias="displayName")
     setup_method: str = Field(alias="setupMethod")
     fields: dict[str, Any]
+    share_with_company: bool = Field(alias="shareWithCompany", default=False)
 
 
 class CreatedConnectionSummary(BaseModel):
@@ -184,6 +187,8 @@ class CreatedConnectionSummary(BaseModel):
     category: str | None = None
     auth_method: str = Field(alias="authMethod")
     can_manage: bool = Field(alias="canManage")
+    share_mode: str | None = Field(alias="shareMode", default=None)
+    shared_with_company: bool = Field(alias="sharedWithCompany", default=False)
 
 
 class CreateConnectionResponse(BaseModel):
@@ -209,6 +214,7 @@ class ManagedConnectionSummary(BaseModel):
     is_personal: bool = Field(alias="isPersonal")
     owner: str | None = None
     share_mode: str = Field(alias="shareMode")
+    shared_with_company: bool = Field(alias="sharedWithCompany", default=False)
 
 
 class ManagedConnectionResponse(BaseModel):
@@ -226,6 +232,7 @@ class UpdateConnectionRequest(BaseModel):
 
     display_name: str | None = Field(alias="displayName", default=None)
     configuration_patch: dict[str, Any] = Field(alias="configurationPatch", default_factory=dict)
+    share_with_company: bool | None = Field(alias="shareWithCompany", default=None)
 
 
 class DeleteConnectionResponse(BaseModel):

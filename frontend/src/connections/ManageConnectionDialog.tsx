@@ -41,6 +41,7 @@ export default function ManageConnectionDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
+  const [shareWithCompany, setShareWithCompany] = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({})
   const [submitBusy, setSubmitBusy] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -112,6 +113,7 @@ export default function ManageConnectionDialog({
         const resolved = body as ManagedConnectionResponse
         setManagedConnection(resolved)
         setDisplayName(resolved.connection.displayName)
+        setShareWithCompany(resolved.connection.sharedWithCompany)
         setFieldValues(buildEditFieldValues(resolved))
       })
       .catch((fetchError) => {
@@ -222,6 +224,7 @@ export default function ManageConnectionDialog({
           body: JSON.stringify({
             displayName: displayName.trim(),
             configurationPatch: serializeFields(editableFields, fieldValues),
+            shareWithCompany,
           }),
         },
       )
@@ -236,6 +239,7 @@ export default function ManageConnectionDialog({
       const updated = body as ManagedConnectionResponse
       setManagedConnection(updated)
       setDisplayName(updated.connection.displayName)
+      setShareWithCompany(updated.connection.sharedWithCompany)
       setFieldValues(buildEditFieldValues(updated))
       await onConnectionsRefresh()
     } catch (saveError) {
@@ -394,6 +398,21 @@ export default function ManageConnectionDialog({
                 onChange={(event) => setDisplayName(event.target.value)}
                 disabled={!managedConnection.connection.canManage}
               />
+            </label>
+
+            <label className="auth-field">
+              <span>Share with Entire Company</span>
+              <input
+                type="checkbox"
+                checked={shareWithCompany}
+                onChange={(event) => setShareWithCompany(event.target.checked)}
+                disabled={!managedConnection.connection.canManage}
+              />
+              <p className="status-inline">
+                {shareWithCompany
+                  ? 'This connection is shared with the entire MarcoPolo company.'
+                  : 'This connection is currently private to the owner unless shared separately with specific users.'}
+              </p>
             </label>
 
             {currentMethod ? (
