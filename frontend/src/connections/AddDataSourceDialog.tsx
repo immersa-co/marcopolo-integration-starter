@@ -50,6 +50,7 @@ export default function AddDataSourceDialog({
   const [detailError, setDetailError] = useState<string | null>(null)
   const [selectedMethod, setSelectedMethod] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [shareWithCompany, setShareWithCompany] = useState(false)
   const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({})
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [submitBusy, setSubmitBusy] = useState(false)
@@ -61,6 +62,7 @@ export default function AddDataSourceDialog({
   const popupRef = useRef<Window | null>(null)
   const pollTimerRef = useRef<number | null>(null)
   const clientSessionIdRef = useRef(`dialog-${Math.random().toString(36).slice(2, 12)}`)
+  const appliedOauthSharingSessionIdRef = useRef<string | null>(null)
 
   const currentMethod =
     detail?.setupMethods.find((method) => method.method === selectedMethod) ?? detail?.setupMethods[0] ?? null
@@ -147,6 +149,7 @@ export default function AddDataSourceDialog({
     setTestResult(null)
     setSelectedMethod('')
     setDisplayName('')
+    setShareWithCompany(false)
     fetch(`${apiBaseUrl}/api/connections/types/${encodeURIComponent(selectedType)}`, {
       credentials: 'include',
       signal: controller.signal,
@@ -164,6 +167,7 @@ export default function AddDataSourceDialog({
         setDetail(resolved)
         setSelectedMethod(resolved.setupMethods[0]?.method ?? '')
         setDisplayName(resolved.displayName)
+        setShareWithCompany(false)
       })
       .catch((error) => {
         if ((error as Error).name !== 'AbortError') {
@@ -217,6 +221,7 @@ export default function AddDataSourceDialog({
     setDetail(null)
     setSelectedMethod('')
     setDisplayName('')
+    setShareWithCompany(false)
     setFieldValues({})
     setShowAdvanced(false)
     setSubmitError(null)
@@ -224,6 +229,7 @@ export default function AddDataSourceDialog({
     setCreatedConnection(null)
     setOauthSession(null)
     setTestResult(null)
+    appliedOauthSharingSessionIdRef.current = null
     stopPolling()
     if (popupRef.current && !popupRef.current.closed) {
       popupRef.current.close()
@@ -262,10 +268,34 @@ export default function AddDataSourceDialog({
       }
       popupRef.current = null
       if (session.status === 'ready') {
+        if (shareWithCompany && appliedOauthSharingSessionIdRef.current !== session.setupSessionId) {
+          await applyCompanySharing(session.connectionName, true)
+          appliedOauthSharingSessionIdRef.current = session.setupSessionId
+        }
         await onConnectionsRefresh()
       }
     }
     return session
+  }
+
+  async function applyCompanySharing(connectionName: string, enabled: boolean) {
+    const response = await fetch(
+      `${apiBaseUrl}/api/connections/${encodeURIComponent(connectionName)}`,
+      {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shareWithCompany: enabled }),
+      },
+    )
+    const body = (await response.json()) as { detail?: string }
+    if (!response.ok) {
+      throw new Error(
+        typeof body === 'object' && body !== null && 'detail' in body && typeof body.detail === 'string'
+          ? body.detail
+          : `Connection sharing update failed with ${response.status}`,
+      )
+    }
   }
 
   function startPolling(setupSessionId: string) {
@@ -293,6 +323,7 @@ export default function AddDataSourceDialog({
         displayName: (displayName || detail.displayName).trim(),
         setupMethod: currentMethod.method,
         fields,
+        shareWithCompany,
       }),
     })
     const body = (await response.json()) as CreateConnectionResponse | { detail?: string }
@@ -338,6 +369,7 @@ export default function AddDataSourceDialog({
     setCreatedConnection(null)
     setOauthSession(started)
     setTestResult(null)
+    appliedOauthSharingSessionIdRef.current = null
     popupRef.current = window.open(
       started.authorizationUrl,
       'marcopolo-oauth-setup',
@@ -520,6 +552,18 @@ export default function AddDataSourceDialog({
                       />
                     </label>
 
+                    <label className="auth-field">
+                      <span>Share with Entire Company</span>
+                      <input
+                        type="checkbox"
+                        checked={shareWithCompany}
+                        onChange={(event) => setShareWithCompany(event.target.checked)}
+                      />
+                      <p className="status-inline">
+                        Make this connection available to everyone in the MarcoPolo company instead of keeping it private to this workspace owner.
+                      </p>
+                    </label>
+
                     {detail.setupMethods.length > 1 ? (
                       <label className="auth-field">
                         <span>Setup method</span>
@@ -612,6 +656,7 @@ export default function AddDataSourceDialog({
                           <strong>{createdConnection.displayName}</strong>
                           <p className="status-inline">
                             Created as {createdConnection.name} via {createdConnection.authMethod}.
+                            {createdConnection.sharedWithCompany ? ' Shared with the entire company.' : ' Private to this user workspace.'}
                           </p>
                         </div>
                         <span className="pill ready">Created</span>
@@ -624,7 +669,7 @@ export default function AddDataSourceDialog({
                           <strong>{oauthSession.displayName}</strong>
                           <p className="status-inline">
                             {oauthSession.status === 'ready'
-                              ? `Connection ${oauthSession.connectionName} is ready to use.`
+                              ? `Connection ${oauthSession.connectionName} is ready to use.${shareWithCompany ? ' Company sharing has been requested.' : ''}`
                               : oauthSession.status === 'failed'
                                 ? `${oauthSession.failureCode ?? 'setup_failed'}: ${oauthSession.failureMessage ?? 'Setup failed.'}`
                                 : `Session ${oauthSession.setupSessionId} is waiting for provider authorization.`}

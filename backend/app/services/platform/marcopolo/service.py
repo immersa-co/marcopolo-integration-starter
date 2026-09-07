@@ -7,7 +7,7 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 from pydantic import TypeAdapter
-from marcopolo import Marcopolo
+from marcopolo import Marcopolo, ShareScope
 from marcopolo._generated.models import ConnectionSetupCreateRequest, ConnectionSetupStart, ReturnUrl
 from marcopolo.errors import APIError, MarcopoloError
 
@@ -164,6 +164,7 @@ class MarcoPoloService:
         display_name: str,
         setup_method: str,
         fields: dict[str, Any],
+        share_with_company: bool = False,
     ) -> CreateConnectionResponse:
         session = await self._resolve_session(user_session)
         try:
@@ -174,6 +175,9 @@ class MarcoPoloService:
                     setup_method=setup_method,
                     fields=fields,
                 )
+                if share_with_company:
+                    await client.connections.share(connection.name, ShareScope.COMPANY)
+                    connection = await client.connections.get(connection.name)
         except (MarcopoloError, ValueError) as exc:
             raise MarcoPoloServiceError(
                 f"MarcoPolo connection creation failed: {_describe_exception(exc)}",
@@ -188,6 +192,8 @@ class MarcoPoloService:
                 category=connection.category,
                 authMethod=connection.auth_method,
                 canManage=connection.can_manage,
+                shareMode=getattr(connection, "share_mode", None),
+                sharedWithCompany=getattr(connection, "share_mode", None) == "company",
             ),
             message="Connection created successfully.",
         )
@@ -228,15 +234,31 @@ class MarcoPoloService:
         *,
         display_name: str | None = None,
         configuration_patch: dict[str, Any] | None = None,
+        share_with_company: bool | None = None,
     ) -> ManagedConnectionSummary:
+        if display_name is None and not configuration_patch and share_with_company is None:
+            raise MarcoPoloServiceError("At least one connection field must be updated", status_code=422)
+
         session = await self._resolve_session(user_session)
         try:
             async with self._sdk_client(session) as client:
-                connection = await client.connections.update(
-                    connection_name,
-                    display_name=display_name,
-                    configuration_patch=configuration_patch,
-                )
+                if display_name is not None or configuration_patch:
+                    connection = await client.connections.update(
+                        connection_name,
+                        display_name=display_name,
+                        configuration_patch=configuration_patch,
+                    )
+                else:
+                    connection = await client.connections.get(connection_name)
+
+                if share_with_company is not None:
+                    shared_with_company = getattr(connection, "share_mode", None) == "company"
+                    if share_with_company and not shared_with_company:
+                        await client.connections.share(connection.name, ShareScope.COMPANY)
+                        connection = await client.connections.get(connection.name)
+                    elif not share_with_company and shared_with_company:
+                        await client.connections.unshare(connection.name, ShareScope.COMPANY)
+                        connection = await client.connections.get(connection.name)
         except (MarcopoloError, ValueError) as exc:
             raise MarcoPoloServiceError(
                 f"MarcoPolo connection update failed: {_describe_exception(exc)}",
@@ -651,6 +673,8 @@ def _normalize_workspace_connection(item: Any) -> ConnectionListItem:
         authMethod=item.connection.auth_method,
         canManage=bool(item.connection.can_manage),
         accessReason=getattr(item.connection, "access_reason", None),
+        shareMode=getattr(item.connection, "share_mode", None),
+        sharedWithCompany=getattr(item.connection, "share_mode", None) == "company",
         capabilities=list(item.capabilities),
         workspacePath=item.workspace_path,
     )
@@ -671,8 +695,9 @@ def _normalize_connection_summary(item: Any) -> ManagedConnectionSummary:
         isPersonal=bool(item.is_personal),
         owner=item.owner,
         shareMode=item.share_mode,
+        sharedWithCompany=item.share_mode == "company",
     )
- 
+
 
 def _select_suggested_setup_method(
     setup_methods: list[ConnectionSetupMethod],

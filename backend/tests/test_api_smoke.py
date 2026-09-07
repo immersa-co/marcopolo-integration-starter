@@ -17,7 +17,7 @@ from backend.app.services.platform.marcopolo.service import (
 )
 from backend.app.services.auth import AuthPlatformError, validate_marcopolo_email_identity
 from backend.app.main import app
-from backend.app.models.api import ConnectionListItem, UserProfile
+from backend.app.models.api import ConnectionListItem, ManagedConnectionSummary, UserProfile
 from backend.app.services.platform import MarcoPoloService
 
 
@@ -256,6 +256,8 @@ class ApiSmokeTests(unittest.TestCase):
                     "category": "warehouse",
                     "authMethod": "manual",
                     "canManage": True,
+                    "shareMode": "company",
+                    "sharedWithCompany": True,
                 },
                 "message": "Connection created successfully.",
             }
@@ -272,6 +274,7 @@ class ApiSmokeTests(unittest.TestCase):
                         "displayName": "Finance Snowflake",
                         "setupMethod": "credentials",
                         "fields": {"account": "acme-west"},
+                        "shareWithCompany": True,
                     },
                 )
 
@@ -279,7 +282,88 @@ class ApiSmokeTests(unittest.TestCase):
             payload = response.json()
             self.assertEqual(payload["connection"]["name"], "snowflake-finance-snowflake")
             self.assertEqual(payload["connection"]["authMethod"], "manual")
-            mocked.assert_awaited_once()
+            self.assertTrue(payload["connection"]["sharedWithCompany"])
+            mocked.assert_awaited_once_with(
+                unittest.mock.ANY,
+                connection_type="snowflake",
+                display_name="Finance Snowflake",
+                setup_method="credentials",
+                fields={"account": "acme-west"},
+                share_with_company=True,
+            )
+
+    def test_update_connection_route_accepts_company_sharing_flag(self) -> None:
+        with self.client as client:
+            auth_response = client.post("/api/auth/demo-session", json={"email": "demo.user@example.com"})
+            self.assertEqual(auth_response.status_code, 200)
+
+            fake_summary = ManagedConnectionSummary(
+                name="snowflake-finance-snowflake",
+                type="snowflake",
+                displayName="Finance Snowflake",
+                authMethod="manual",
+                canManage=True,
+                accessReason="owner",
+                category="warehouse",
+                connectionTypeDisplayName="Snowflake",
+                isDemoConnection=False,
+                isOwner=True,
+                isPersonal=False,
+                owner="demo.user@example.com",
+                shareMode="company",
+                sharedWithCompany=True,
+            )
+            fake_connection = {
+                "connection": fake_summary.model_dump(mode="json", by_alias=True),
+                "configuration": {"account": "acme-west"},
+                "connectionTypeDetail": {
+                    "type": "snowflake",
+                    "displayName": "Snowflake",
+                    "category": "warehouse",
+                    "description": "Cloud warehouse",
+                    "authMethods": ["manual"],
+                    "uiFeatures": {
+                        "deleteWarning": "default",
+                        "filePicker": [],
+                        "isFileProvider": False,
+                        "isPersonal": False,
+                        "logoKey": None,
+                        "requiresOAuth": False,
+                        "supportsDownload": False,
+                        "supportsUpload": False,
+                        "usesLocalFilePicker": False,
+                    },
+                    "setupMethods": [],
+                },
+                "suggestedSetupMethod": None,
+                "supportsReauthorize": False,
+            }
+
+            with patch.object(
+                MarcoPoloService,
+                "update_connection",
+                new=AsyncMock(return_value=fake_summary),
+            ) as mocked_update, patch.object(
+                MarcoPoloService,
+                "get_connection",
+                new=AsyncMock(return_value=fake_connection),
+            ) as mocked_get:
+                response = client.patch(
+                    "/api/connections/snowflake-finance-snowflake",
+                    json={"shareWithCompany": True},
+                )
+
+            self.assertEqual(response.status_code, 200)
+            payload = response.json()
+            self.assertTrue(payload["connection"]["sharedWithCompany"])
+            mocked_update.assert_awaited_once_with(
+                unittest.mock.ANY,
+                "snowflake-finance-snowflake",
+                display_name=None,
+                configuration_patch={},
+                share_with_company=True,
+            )
+            mocked_get.assert_awaited_once_with(unittest.mock.ANY, "snowflake-finance-snowflake")
 
     def test_connection_matcher_supports_non_demo_connectors(self) -> None:
         connections = [

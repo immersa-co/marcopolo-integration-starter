@@ -38,6 +38,8 @@ export type ConnectionListItem = {
   authMethod: string
   canManage: boolean
   accessReason?: string | null
+  shareMode?: string | null
+  sharedWithCompany?: boolean
   capabilities: string[]
   workspacePath?: string | null
 }
@@ -138,6 +140,8 @@ export type CreateConnectionResponse = {
     category?: string | null
     authMethod: string
     canManage: boolean
+    shareMode?: string | null
+    sharedWithCompany?: boolean
   }
   message: string
 }
@@ -157,6 +161,7 @@ export type ManagedConnectionResponse = {
     isPersonal: boolean
     owner?: string | null
     shareMode: string
+    sharedWithCompany: boolean
   }
   configuration: Record<string, unknown>
   connectionTypeDetail: ConnectionTypeDetail
